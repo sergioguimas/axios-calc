@@ -10,7 +10,9 @@ services:
       - "traefik.docker.network=public"
       - "traefik.http.routers.axios-calc.rule=Host(`axioscalc.sgdev.cloud`)"
       - "traefik.http.routers.axios-calc.entrypoints=websecure"
+      - "traefik.http.routers.axios-calc.tls=true"
       - "traefik.http.routers.axios-calc.tls.certresolver=meuresolver"
+      - "traefik.http.routers.axios-calc.service=axios-calc"
       - "traefik.http.services.axios-calc.loadbalancer.server.port=3000"
     env_file:
       - .env

@@ -89,6 +89,39 @@ volumes:
 
 Em produção, a conexão usada é `DATABASE_URL="file:/app/data/prod.db"`.
 
+### HTTPS com Traefik
+
+O `docker-compose.yml` publica o Axios Calc no router `axios-calc`, usando o domínio `axioscalc.sgdev.cloud`, a rede externa `public` e o certificate resolver `meuresolver`.
+
+O Traefik precisa ter um resolver com esse mesmo nome em sua configuração estática. Exemplo com desafio HTTP:
+
+```yaml
+certificatesResolvers:
+  meuresolver:
+    acme:
+      email: seu-email@dominio.com
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+```
+
+Para a emissão funcionar:
+
+- o DNS `A` do domínio deve apontar para a VPS;
+- as portas TCP 80 e 443 devem estar liberadas no firewall e publicadas pelo container do Traefik;
+- o entrypoint `web` deve escutar em `:80` e `websecure` em `:443`;
+- o arquivo `acme.json` deve persistir e ter permissão `600`;
+- o Traefik e o Axios Calc devem compartilhar a rede Docker `public`.
+
+Depois de corrigir a infraestrutura, recrie o serviço e confira os logs do Traefik:
+
+```bash
+docker compose up -d --force-recreate
+docker logs traefik --tail 200
+```
+
+Procure nos logs por `acme`, `axioscalc.sgdev.cloud`, `meuresolver` ou `certificate`. Enquanto o ACME não emitir um certificado válido, o Traefik continuará entregando seu certificado autoassinado `TRAEFIK DEFAULT CERT`.
+
 ## Comandos úteis
 
 ```bash
