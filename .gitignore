@@ -1,0 +1,13 @@
+node_modules/
+.next/
+.npm-cache/
+.env
+.env.local
+data/*.db
+data/*.db-journal
+data/*.db-shm
+data/*.db-wal
+.prototype-bootstrap/
+design-qa-comparison.png
+npm-debug.log*
+*.tsbuildinfo

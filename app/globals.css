@@ -1,0 +1,64 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/roboto-condensed";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --background: 198 31% 4%;
+  --foreground: 210 18% 92%;
+  --card: 200 24% 6%;
+  --border: 197 13% 18%;
+  --muted: 198 12% 14%;
+  --muted-foreground: 207 9% 60%;
+  --primary: 33 93% 54%;
+  --primary-foreground: 200 40% 4%;
+  --destructive: 0 72% 51%;
+  --radius: 0.45rem;
+}
+
+* { border-color: hsl(var(--border)); }
+html { background: #080d10; }
+body {
+  min-height: 100vh;
+  background: #080d10;
+  color: hsl(var(--foreground));
+  font-family: "Inter Variable", system-ui, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  text-rendering: optimizeLegibility;
+}
+
+.font-display { font-family: "Roboto Condensed Variable", system-ui, sans-serif; }
+::selection { background: rgb(245 139 22 / 0.28); color: white; }
+
+@layer components {
+  .panel {
+    @apply rounded-lg border border-border bg-card;
+  }
+  .section-title {
+    @apply flex items-center gap-2 border-b border-border px-4 py-3 font-display text-base font-semibold text-zinc-100;
+  }
+  .metric-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground;
+  }
+  .data-table {
+    @apply w-full min-w-[760px] border-collapse text-left text-sm;
+  }
+  .data-table th {
+    @apply border-b border-border bg-white/[0.015] px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground;
+  }
+  .data-table td {
+    @apply border-b border-border/80 px-4 py-3.5 align-middle;
+  }
+  .data-table tr:last-child td { @apply border-b-0; }
+  .data-table tbody tr { @apply transition-colors hover:bg-white/[0.025]; }
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { opacity: 0.45; }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #080d10; }
+::-webkit-scrollbar-thumb { border: 3px solid #080d10; border-radius: 99px; background: #30383c; }

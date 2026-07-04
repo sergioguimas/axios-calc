@@ -1,0 +1,9 @@
+node_modules
+.next
+.git
+.prototype-bootstrap
+.npm-cache
+data/*.db*
+.env*
+npm-debug.log*
+design-qa-comparison.png

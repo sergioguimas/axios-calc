@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model AppSettings {
+  id                   Int      @id @default(1)
+  companyName          String?
+  kwhCost              Float    @default(1.14)
+  defaultProfitPercent Float    @default(100)
+  currency             String   @default("BRL")
+  notes                String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Resin {
+  id                  Int      @id @default(autoincrement())
+  name                String   @unique
+  manufacturer        String?
+  color               String?
+  purchasePrice       Float
+  purchaseUnit        String
+  purchaseQuantity    Float
+  density             Float?
+  calculatedCostPerMl Float
+  manualCostPerMl     Float?
+  notes               String?
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  quotes              Quote[]
+}
+
+model Printer {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  model      String?
+  powerWatts Float
+  notes      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  quotes     Quote[]
+}
+
+model FinishPreset {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  fixedCost   Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  quotes      Quote[]
+}
+
+model Quote {
+  id                        Int           @id @default(autoincrement())
+  modelName                 String
+  customerName              String?
+  description               String?
+  quantity                  Int           @default(1)
+  status                    String        @default("QUOTE")
+  materialType              String        @default("RESIN")
+  driveLink                 String?
+  notes                     String?
+  freightNotes              String?
+  heightMm                  Float         @default(0)
+  widthMm                   Float         @default(0)
+  depthMm                   Float         @default(0)
+  resinMl                   Float         @default(0)
+  printTimeMinutes          Int           @default(0)
+  resinId                   Int?
+  resin                     Resin?        @relation(fields: [resinId], references: [id], onDelete: Restrict)
+  resinNameSnapshot         String
+  resinCostPerMlSnapshot    Float
+  printerId                 Int?
+  printer                   Printer?      @relation(fields: [printerId], references: [id], onDelete: Restrict)
+  printerNameSnapshot       String
+  printerPowerWattsSnapshot Float
+  finishPresetId            Int?
+  finishPreset              FinishPreset? @relation(fields: [finishPresetId], references: [id], onDelete: Restrict)
+  finishNameSnapshot        String
+  finishCostSnapshot        Float
+  materialCost              Float
+  energyCost                Float
+  finishCost                Float
+  freightCost               Float
+  totalCost                 Float
+  pricingMode               String        @default("PERCENT")
+  profitPercent             Float
+  profitValue               Float
+  finalPrice                Float
+  unitCost                  Float
+  unitPrice                 Float
+  createdAt                 DateTime      @default(now())
+  updatedAt                 DateTime      @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([modelName])
+  @@index([customerName])
+}

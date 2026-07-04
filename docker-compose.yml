@@ -1,0 +1,12 @@
+services:
+  axios-calc:
+    build: .
+    container_name: axios-calc
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "file:/app/data/prod.db"
+      NODE_ENV: "production"
+    volumes:
+      - ./data:/app/data
