@@ -26,6 +26,7 @@ COPY --from=build /app/.next ./.next
 COPY --from=build /app/public ./public
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/prisma.config.ts ./prisma.config.ts
+COPY --from=build /app/lib ./lib
 COPY --from=build /app/scripts ./scripts
 
 RUN mkdir -p /app/data && chmod +x /app/scripts/docker-entrypoint.sh

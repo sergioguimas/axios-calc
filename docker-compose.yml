@@ -3,6 +3,8 @@ services:
     build: .
     container_name: axios-calc
     restart: unless-stopped
+    expose:
+      - "3000"
     networks:
       - public
     labels:
@@ -14,6 +16,7 @@ services:
       - "traefik.http.routers.axios-calc.tls.certresolver=meuresolver"
       - "traefik.http.routers.axios-calc.service=axios-calc"
       - "traefik.http.services.axios-calc.loadbalancer.server.port=3000"
+      - "traefik.http.services.axios-calc.loadbalancer.server.scheme=http"
     env_file:
       - .env
     environment:
@@ -21,6 +24,12 @@ services:
       NODE_ENV: "production"
     volumes:
       - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 networks:
   public:
     external: true
