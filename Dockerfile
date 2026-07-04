@@ -2,12 +2,14 @@ FROM node:20-alpine AS build
 
 RUN apk add --no-cache openssl
 WORKDIR /app
+ENV DATABASE_URL="file:/tmp/axios-calc-build.db"
 
 COPY package.json package-lock.json ./
+COPY prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
 RUN npm ci
 
 COPY . .
-ENV DATABASE_URL="file:/tmp/axios-calc-build.db"
 RUN npx prisma generate && npm run build
 
 FROM node:20-alpine AS runner
