@@ -3,20 +3,22 @@ import { notFound } from "next/navigation";
 import { updateQuoteAction } from "@/app/actions";
 import { PageHeader } from "@/components/page-header";
 import { QuoteForm } from "@/components/quote-form";
+import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = { title: "Editar orçamento" };
 export const dynamic = "force-dynamic";
 
 export default async function EditQuotePage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await requireSession();
   const { id: rawId } = await params;
   const id = Number(rawId);
   const [quote, settings, resins, printers, finishes] = await Promise.all([
-    prisma.quote.findUnique({ where: { id } }),
-    prisma.appSettings.findUnique({ where: { id: 1 } }),
-    prisma.resin.findMany({ where: { OR: [{ isActive: true }, { quotes: { some: { id } } }] }, orderBy: { name: "asc" } }),
-    prisma.printer.findMany({ where: { OR: [{ isActive: true }, { quotes: { some: { id } } }] }, orderBy: { name: "asc" } }),
-    prisma.finishPreset.findMany({ where: { OR: [{ isActive: true }, { quotes: { some: { id } } }] }, orderBy: [{ fixedCost: "asc" }, { name: "asc" }] }),
+    prisma.quote.findFirst({ where: { id, userId: session.id } }),
+    prisma.appSettings.findUnique({ where: { userId: session.id } }),
+    prisma.resin.findMany({ where: { userId: session.id, OR: [{ isActive: true }, { quotes: { some: { id } } }] }, orderBy: { name: "asc" } }),
+    prisma.printer.findMany({ where: { userId: session.id, OR: [{ isActive: true }, { quotes: { some: { id } } }] }, orderBy: { name: "asc" } }),
+    prisma.finishPreset.findMany({ where: { userId: session.id, OR: [{ isActive: true }, { quotes: { some: { id } } }] }, orderBy: [{ fixedCost: "asc" }, { name: "asc" }] }),
   ]);
   if (!quote) notFound();
   const action = updateQuoteAction.bind(null, quote.id);

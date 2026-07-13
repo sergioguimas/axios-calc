@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
 import { createQuoteAction } from "@/app/actions";
 import { QuoteForm } from "@/components/quote-form";
+import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = { title: "Novo orçamento" };
 export const dynamic = "force-dynamic";
 
 export default async function NewQuotePage() {
+  const session = await requireSession();
   const [settings, resins, printers, finishes] = await Promise.all([
-    prisma.appSettings.findUnique({ where: { id: 1 } }),
-    prisma.resin.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
-    prisma.printer.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
-    prisma.finishPreset.findMany({ where: { isActive: true }, orderBy: [{ fixedCost: "asc" }, { name: "asc" }] }),
+    prisma.appSettings.findUnique({ where: { userId: session.id } }),
+    prisma.resin.findMany({ where: { userId: session.id, isActive: true }, orderBy: { name: "asc" } }),
+    prisma.printer.findMany({ where: { userId: session.id, isActive: true }, orderBy: { name: "asc" } }),
+    prisma.finishPreset.findMany({ where: { userId: session.id, isActive: true }, orderBy: [{ fixedCost: "asc" }, { name: "asc" }] }),
   ]);
 
   const appSettings = settings ?? { kwhCost: 1.14, defaultProfitPercent: 100, currency: "BRL" };

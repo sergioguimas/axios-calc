@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { formatCurrency, formatDuration, formatPercent } from "@/lib/calculations";
 import { QUOTE_STATUSES, STATUS_LABELS } from "@/lib/constants";
+import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 
@@ -20,8 +21,9 @@ function Fact({ label, value, accent = false }: { label: string; value: React.Re
 }
 
 export default async function QuoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await requireSession();
   const { id } = await params;
-  const quote = await prisma.quote.findUnique({ where: { id: Number(id) } });
+  const quote = await prisma.quote.findFirst({ where: { id: Number(id), userId: session.id } });
   if (!quote) notFound();
 
   const costs = [

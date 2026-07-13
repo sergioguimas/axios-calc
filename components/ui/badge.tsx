@@ -7,6 +7,8 @@ const tones: Record<string, { dot: string; text: string }> = {
   PRODUCED: { dot: "bg-emerald-400", text: "text-emerald-300" },
   CANCELED: { dot: "bg-red-400", text: "text-red-300" },
   ARCHIVED: { dot: "bg-zinc-500", text: "text-zinc-400" },
+  ACTIVE: { dot: "bg-emerald-400", text: "text-emerald-300" },
+  BLOCKED: { dot: "bg-red-400", text: "text-red-300" },
 };
 
 export function Badge({ className, status, children, ...props }: React.ComponentProps<"span"> & { status?: string }) {

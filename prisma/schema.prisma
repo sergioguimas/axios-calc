@@ -7,8 +7,39 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id                   Int       @id @default(autoincrement())
+  username             String    @unique
+  passwordHash         String
+  role                 String    @default("USER")
+  status               String    @default("ACTIVE")
+  subscriptionStartsAt DateTime  @default(now())
+  subscriptionEndsAt   DateTime?
+  lastLoginAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  sessions      Session[]
+  appSettings   AppSettings?
+  resins        Resin[]
+  printers      Printer[]
+  finishPresets FinishPreset[]
+  quotes        Quote[]
+}
+
+model Session {
+  id        String   @id
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
 model AppSettings {
-  id                   Int      @id @default(1)
+  userId               Int      @id
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   companyName          String?
   kwhCost              Float    @default(1.14)
   defaultProfitPercent Float    @default(100)
@@ -20,7 +51,9 @@ model AppSettings {
 
 model Resin {
   id                  Int      @id @default(autoincrement())
-  name                String   @unique
+  userId              Int
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                String
   manufacturer        String?
   color               String?
   purchasePrice       Float
@@ -34,11 +67,15 @@ model Resin {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
   quotes              Quote[]
+
+  @@unique([userId, name])
 }
 
 model Printer {
   id         Int      @id @default(autoincrement())
-  name       String   @unique
+  userId     Int
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
   model      String?
   powerWatts Float
   notes      String?
@@ -46,21 +83,29 @@ model Printer {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   quotes     Quote[]
+
+  @@unique([userId, name])
 }
 
 model FinishPreset {
   id          Int      @id @default(autoincrement())
-  name        String   @unique
+  userId      Int
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
   description String?
   fixedCost   Float
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   quotes      Quote[]
+
+  @@unique([userId, name])
 }
 
 model Quote {
   id                        Int           @id @default(autoincrement())
+  userId                    Int
+  user                      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   modelName                 String
   customerName              String?
   description               String?
@@ -101,6 +146,7 @@ model Quote {
   createdAt                 DateTime      @default(now())
   updatedAt                 DateTime      @updatedAt
 
+  @@index([userId])
   @@index([status])
   @@index([createdAt])
   @@index([modelName])

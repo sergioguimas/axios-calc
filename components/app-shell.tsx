@@ -5,13 +5,15 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
   TbChartGridDots,
-  TbChevronRight,
   TbFileInvoice,
   TbHistory,
+  TbLogout,
   TbMenu2,
   TbSettings,
+  TbShieldLock,
   TbX,
 } from "react-icons/tb";
+import { logoutAction } from "@/app/logout-action";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -21,9 +23,12 @@ const navigation = [
   { href: "/configuracoes", label: "Configurações", icon: TbSettings },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export type ShellUser = { username: string; role: string };
+
+export function AppShell({ children, user }: { children: React.ReactNode; user: ShellUser }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const items = user.role === "ADMIN" ? [...navigation, { href: "/admin", label: "Admin", icon: TbShieldLock, exact: false }] : navigation;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -53,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-6" aria-label="Navegação principal">
-          {navigation.map((item) => {
+          {items.map((item) => {
             const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
             const Icon = item.icon;
             return (
@@ -76,10 +81,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="border-t border-border p-3">
-          <div className="flex items-center gap-2 rounded-md px-2 py-3 text-xs text-muted-foreground">
-            <span className="grid h-8 w-8 place-items-center rounded-full bg-teal-400/10 font-bold text-teal-300">AC</span>
-            <span className="min-w-0 flex-1"><strong className="block truncate text-zinc-200">Axios Calc</strong>Uso interno</span>
-            <TbChevronRight />
+          <div className="flex items-center gap-2 px-2 py-2 text-xs text-muted-foreground">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-teal-400/10 font-bold uppercase text-teal-300">{user.username.slice(0, 2)}</span>
+            <span className="min-w-0 flex-1">
+              <strong className="block truncate text-zinc-200">{user.username}</strong>
+              {user.role === "ADMIN" ? "Administrador" : "Uso interno"}
+            </span>
+            <form action={logoutAction}>
+              <button type="submit" aria-label="Sair" title="Sair" className="grid h-8 w-8 place-items-center text-zinc-400 transition hover:text-red-300">
+                <TbLogout size={18} />
+              </button>
+            </form>
           </div>
         </div>
       </aside>

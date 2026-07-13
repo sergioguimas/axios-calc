@@ -1,14 +1,28 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 import { calculateResinCostPerMl } from "../lib/calculations";
 
 const prisma = new PrismaClient();
 
 async function main() {
-  await prisma.appSettings.upsert({
-    where: { id: 1 },
+  const passwordHash = await bcrypt.hash("@dmin", 12);
+  const admin = await prisma.user.upsert({
+    where: { username: "admin" },
     update: {},
     create: {
-      id: 1,
+      username: "admin",
+      passwordHash,
+      role: "ADMIN",
+      status: "ACTIVE",
+      subscriptionEndsAt: null,
+    },
+  });
+
+  await prisma.appSettings.upsert({
+    where: { userId: admin.id },
+    update: {},
+    create: {
+      userId: admin.id,
       companyName: "Oficina 3D",
       kwhCost: 1.14,
       defaultProfitPercent: 100,
@@ -17,9 +31,10 @@ async function main() {
   });
 
   await prisma.resin.upsert({
-    where: { name: "Resina padrão" },
+    where: { userId_name: { userId: admin.id, name: "Resina padrão" } },
     update: {},
     create: {
+      userId: admin.id,
       name: "Resina padrão",
       purchasePrice: 150,
       purchaseUnit: "KG",
@@ -36,9 +51,10 @@ async function main() {
   });
 
   await prisma.printer.upsert({
-    where: { name: "Impressora de resina padrão" },
+    where: { userId_name: { userId: admin.id, name: "Impressora de resina padrão" } },
     update: {},
     create: {
+      userId: admin.id,
       name: "Impressora de resina padrão",
       model: "LCD/MSLA",
       powerWatts: 120,
@@ -54,9 +70,9 @@ async function main() {
     ["Pintura premium", 100],
   ] as const) {
     await prisma.finishPreset.upsert({
-      where: { name: finish[0] },
+      where: { userId_name: { userId: admin.id, name: finish[0] } },
       update: {},
-      create: { name: finish[0], fixedCost: finish[1], isActive: true },
+      create: { userId: admin.id, name: finish[0], fixedCost: finish[1], isActive: true },
     });
   }
 }

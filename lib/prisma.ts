@@ -8,4 +8,8 @@ export const prisma =
     log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
   });
 
+if (!globalForPrisma.prisma) {
+  prisma.$executeRawUnsafe("PRAGMA journal_mode=WAL;").catch(() => {});
+}
+
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/page-header";
+import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency } from "@/lib/calculations";
 import { STATUS_LABELS } from "@/lib/constants";
@@ -12,12 +13,13 @@ import { cn } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const session = await requireSession();
   const [total, approved, produced, aggregates, latest] = await Promise.all([
-    prisma.quote.count(),
-    prisma.quote.count({ where: { status: "APPROVED" } }),
-    prisma.quote.count({ where: { status: "PRODUCED" } }),
-    prisma.quote.aggregate({ _avg: { totalCost: true, finalPrice: true, profitValue: true } }),
-    prisma.quote.findMany({ orderBy: { createdAt: "desc" }, take: 6 }),
+    prisma.quote.count({ where: { userId: session.id } }),
+    prisma.quote.count({ where: { userId: session.id, status: "APPROVED" } }),
+    prisma.quote.count({ where: { userId: session.id, status: "PRODUCED" } }),
+    prisma.quote.aggregate({ where: { userId: session.id }, _avg: { totalCost: true, finalPrice: true, profitValue: true } }),
+    prisma.quote.findMany({ where: { userId: session.id }, orderBy: { createdAt: "desc" }, take: 6 }),
   ]);
 
   const metrics = [

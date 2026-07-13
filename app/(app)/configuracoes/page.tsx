@@ -30,6 +30,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/calculations";
 import { UNIT_LABELS } from "@/lib/constants";
+import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 
@@ -54,13 +55,14 @@ function Feedback({ params }: { params: Record<string, string | undefined> }) {
 }
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const session = await requireSession();
   const params = await searchParams;
   const activeTab = tabs.some((tab) => tab.value === params.tab) ? params.tab! : "geral";
   const [settings, resins, printers, finishes] = await Promise.all([
-    prisma.appSettings.findUnique({ where: { id: 1 } }),
-    prisma.resin.findMany({ orderBy: [{ isActive: "desc" }, { name: "asc" }] }),
-    prisma.printer.findMany({ orderBy: [{ isActive: "desc" }, { name: "asc" }] }),
-    prisma.finishPreset.findMany({ orderBy: [{ isActive: "desc" }, { fixedCost: "asc" }] }),
+    prisma.appSettings.findUnique({ where: { userId: session.id } }),
+    prisma.resin.findMany({ where: { userId: session.id }, orderBy: [{ isActive: "desc" }, { name: "asc" }] }),
+    prisma.printer.findMany({ where: { userId: session.id }, orderBy: [{ isActive: "desc" }, { name: "asc" }] }),
+    prisma.finishPreset.findMany({ where: { userId: session.id }, orderBy: [{ isActive: "desc" }, { fixedCost: "asc" }] }),
   ]);
   const editId = Number(params.edit || 0);
   const editResin = activeTab === "resinas" ? resins.find((item) => item.id === editId) : undefined;

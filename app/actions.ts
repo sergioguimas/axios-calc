@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateQuote, calculateResinCostPerMl, parseLocaleNumber, timeToMinutes } from "@/lib/calculations";
 import { finishSchema, printerSchema, quoteSchema, resinSchema, settingsSchema } from "@/lib/validation";
@@ -35,6 +36,7 @@ function errorMessage(error: unknown) {
 }
 
 async function persistQuote(id: number | null, _previousState: QuoteActionState, formData: FormData): Promise<QuoteActionState> {
+  const session = await requireSession();
   const candidate = {
     modelName: text(formData, "modelName"),
     customerName: optionalText(formData, "customerName"),
@@ -69,16 +71,22 @@ async function persistQuote(id: number | null, _previousState: QuoteActionState,
 
   const input = parsed.data;
   const [settings, resin, printer, finish] = await Promise.all([
-    prisma.appSettings.findUnique({ where: { id: 1 } }),
-    prisma.resin.findUnique({ where: { id: input.resinId } }),
-    prisma.printer.findUnique({ where: { id: input.printerId } }),
-    prisma.finishPreset.findUnique({ where: { id: input.finishPresetId } }),
+    prisma.appSettings.findUnique({ where: { userId: session.id } }),
+    prisma.resin.findFirst({ where: { id: input.resinId, userId: session.id } }),
+    prisma.printer.findFirst({ where: { id: input.printerId, userId: session.id } }),
+    prisma.finishPreset.findFirst({ where: { id: input.finishPresetId, userId: session.id } }),
   ]);
 
-  if (!settings || !resin || !printer || !finish) {
+  if (!resin || !printer || !finish) {
     return { error: "Um dos cadastros selecionados não existe mais. Atualize a página e selecione novamente." };
   }
 
+  if (id) {
+    const owned = await prisma.quote.findFirst({ where: { id, userId: session.id }, select: { id: true } });
+    if (!owned) return { error: "Orçamento não encontrado." };
+  }
+
+  const kwhCost = settings?.kwhCost ?? 1.14;
   const printTimeMinutes = timeToMinutes(input.printHours, input.printMinutes);
   const resinCostPerMl = resin.manualCostPerMl ?? resin.calculatedCostPerMl;
   const totals = calculateQuote({
@@ -86,7 +94,7 @@ async function persistQuote(id: number | null, _previousState: QuoteActionState,
     resinCostPerMl,
     powerWatts: printer.powerWatts,
     printTimeMinutes,
-    kwhCost: settings.kwhCost,
+    kwhCost,
     finishCost: finish.fixedCost,
     freightCost: input.freightCost,
     quantity: input.quantity,
@@ -100,6 +108,7 @@ async function persistQuote(id: number | null, _previousState: QuoteActionState,
   }
 
   const data = {
+    userId: session.id,
     modelName: input.modelName,
     customerName: input.customerName || null,
     description: input.description || null,
@@ -149,8 +158,9 @@ export async function updateQuoteAction(id: number, previousState: QuoteActionSt
 }
 
 export async function duplicateQuoteAction(formData: FormData) {
+  const session = await requireSession();
   const id = idFrom(formData);
-  const source = await prisma.quote.findUnique({ where: { id } });
+  const source = await prisma.quote.findFirst({ where: { id, userId: session.id } });
   if (!source) redirect("/orcamentos?error=Orçamento não encontrado");
 
   const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...copy } = source;
@@ -163,24 +173,27 @@ export async function duplicateQuoteAction(formData: FormData) {
 }
 
 export async function deleteQuoteAction(formData: FormData) {
+  const session = await requireSession();
   const id = idFrom(formData);
-  if (id > 0) await prisma.quote.delete({ where: { id } });
+  if (id > 0) await prisma.quote.deleteMany({ where: { id, userId: session.id } });
   revalidatePath("/");
   revalidatePath("/orcamentos");
   redirect("/orcamentos?deleted=1");
 }
 
 export async function updateQuoteStatusAction(formData: FormData) {
+  const session = await requireSession();
   const id = idFrom(formData);
   const status = text(formData, "status");
   if (!["QUOTE", "APPROVED", "PRODUCED", "CANCELED", "ARCHIVED"].includes(status)) return;
-  await prisma.quote.update({ where: { id }, data: { status } });
+  await prisma.quote.updateMany({ where: { id, userId: session.id }, data: { status } });
   revalidatePath("/");
   revalidatePath("/orcamentos");
   revalidatePath(`/orcamentos/${id}`);
 }
 
 export async function updateSettingsAction(formData: FormData) {
+  const session = await requireSession();
   const parsed = settingsSchema.safeParse({
     companyName: optionalText(formData, "companyName"),
     kwhCost: parseLocaleNumber(formData.get("kwhCost")),
@@ -189,13 +202,14 @@ export async function updateSettingsAction(formData: FormData) {
     notes: optionalText(formData, "notes"),
   });
   if (!parsed.success) redirect("/configuracoes?tab=geral&error=Revise os valores informados");
-  await prisma.appSettings.upsert({ where: { id: 1 }, create: { id: 1, ...parsed.data }, update: parsed.data });
+  await prisma.appSettings.upsert({ where: { userId: session.id }, create: { userId: session.id, ...parsed.data }, update: parsed.data });
   revalidatePath("/");
   revalidatePath("/configuracoes");
   redirect("/configuracoes?tab=geral&saved=1");
 }
 
 export async function upsertResinAction(formData: FormData) {
+  const session = await requireSession();
   const id = idFrom(formData);
   const parsed = resinSchema.safeParse({
     name: text(formData, "name"),
@@ -211,9 +225,9 @@ export async function upsertResinAction(formData: FormData) {
   });
   if (!parsed.success) redirect("/configuracoes?tab=resinas&error=Revise os dados da resina");
   const calculatedCostPerMl = calculateResinCostPerMl(parsed.data);
-  const data = { ...parsed.data, density: parsed.data.density ?? null, manualCostPerMl: parsed.data.manualCostPerMl ?? null, calculatedCostPerMl };
+  const data = { ...parsed.data, density: parsed.data.density ?? null, manualCostPerMl: parsed.data.manualCostPerMl ?? null, calculatedCostPerMl, userId: session.id };
   try {
-    if (id > 0) await prisma.resin.update({ where: { id }, data });
+    if (id > 0) await prisma.resin.updateMany({ where: { id, userId: session.id }, data });
     else await prisma.resin.create({ data });
   } catch {
     redirect("/configuracoes?tab=resinas&error=Já existe uma resina com esse nome");
@@ -223,22 +237,25 @@ export async function upsertResinAction(formData: FormData) {
 }
 
 export async function toggleResinAction(formData: FormData) {
+  const session = await requireSession();
   const id = idFrom(formData);
-  const current = await prisma.resin.findUnique({ where: { id }, select: { isActive: true } });
-  if (current) await prisma.resin.update({ where: { id }, data: { isActive: !current.isActive } });
+  const current = await prisma.resin.findFirst({ where: { id, userId: session.id }, select: { isActive: true } });
+  if (current) await prisma.resin.updateMany({ where: { id, userId: session.id }, data: { isActive: !current.isActive } });
   revalidatePath("/configuracoes");
 }
 
 export async function deleteResinAction(formData: FormData) {
+  const session = await requireSession();
   const id = idFrom(formData);
-  const inUse = await prisma.quote.count({ where: { resinId: id } });
+  const inUse = await prisma.quote.count({ where: { resinId: id, userId: session.id } });
   if (inUse > 0) redirect("/configuracoes?tab=resinas&error=Esta resina está vinculada a orçamentos e não pode ser excluída");
-  await prisma.resin.delete({ where: { id } });
+  await prisma.resin.deleteMany({ where: { id, userId: session.id } });
   revalidatePath("/configuracoes");
   redirect("/configuracoes?tab=resinas&deleted=1");
 }
 
 export async function upsertPrinterAction(formData: FormData) {
+  const session = await requireSession();
   const id = idFrom(formData);
   const parsed = printerSchema.safeParse({
     name: text(formData, "name"),
@@ -248,9 +265,10 @@ export async function upsertPrinterAction(formData: FormData) {
     isActive: formData.get("isActive") === "on",
   });
   if (!parsed.success) redirect("/configuracoes?tab=impressoras&error=Revise os dados da impressora");
+  const data = { ...parsed.data, userId: session.id };
   try {
-    if (id > 0) await prisma.printer.update({ where: { id }, data: parsed.data });
-    else await prisma.printer.create({ data: parsed.data });
+    if (id > 0) await prisma.printer.updateMany({ where: { id, userId: session.id }, data });
+    else await prisma.printer.create({ data });
   } catch {
     redirect("/configuracoes?tab=impressoras&error=Já existe uma impressora com esse nome");
   }
@@ -259,23 +277,26 @@ export async function upsertPrinterAction(formData: FormData) {
 }
 
 export async function togglePrinterAction(formData: FormData) {
+  const session = await requireSession();
   const id = idFrom(formData);
-  const current = await prisma.printer.findUnique({ where: { id }, select: { isActive: true } });
-  if (current) await prisma.printer.update({ where: { id }, data: { isActive: !current.isActive } });
+  const current = await prisma.printer.findFirst({ where: { id, userId: session.id }, select: { isActive: true } });
+  if (current) await prisma.printer.updateMany({ where: { id, userId: session.id }, data: { isActive: !current.isActive } });
   revalidatePath("/configuracoes");
 }
 
 export async function deletePrinterAction(formData: FormData) {
+  const session = await requireSession();
   const id = idFrom(formData);
-  if (await prisma.quote.count({ where: { printerId: id } })) {
+  if (await prisma.quote.count({ where: { printerId: id, userId: session.id } })) {
     redirect("/configuracoes?tab=impressoras&error=Esta impressora está vinculada a orçamentos e não pode ser excluída");
   }
-  await prisma.printer.delete({ where: { id } });
+  await prisma.printer.deleteMany({ where: { id, userId: session.id } });
   revalidatePath("/configuracoes");
   redirect("/configuracoes?tab=impressoras&deleted=1");
 }
 
 export async function upsertFinishAction(formData: FormData) {
+  const session = await requireSession();
   const id = idFrom(formData);
   const parsed = finishSchema.safeParse({
     name: text(formData, "name"),
@@ -284,9 +305,10 @@ export async function upsertFinishAction(formData: FormData) {
     isActive: formData.get("isActive") === "on",
   });
   if (!parsed.success) redirect("/configuracoes?tab=acabamentos&error=Revise os dados do acabamento");
+  const data = { ...parsed.data, userId: session.id };
   try {
-    if (id > 0) await prisma.finishPreset.update({ where: { id }, data: parsed.data });
-    else await prisma.finishPreset.create({ data: parsed.data });
+    if (id > 0) await prisma.finishPreset.updateMany({ where: { id, userId: session.id }, data });
+    else await prisma.finishPreset.create({ data });
   } catch {
     redirect("/configuracoes?tab=acabamentos&error=Já existe um acabamento com esse nome");
   }
@@ -295,18 +317,20 @@ export async function upsertFinishAction(formData: FormData) {
 }
 
 export async function toggleFinishAction(formData: FormData) {
+  const session = await requireSession();
   const id = idFrom(formData);
-  const current = await prisma.finishPreset.findUnique({ where: { id }, select: { isActive: true } });
-  if (current) await prisma.finishPreset.update({ where: { id }, data: { isActive: !current.isActive } });
+  const current = await prisma.finishPreset.findFirst({ where: { id, userId: session.id }, select: { isActive: true } });
+  if (current) await prisma.finishPreset.updateMany({ where: { id, userId: session.id }, data: { isActive: !current.isActive } });
   revalidatePath("/configuracoes");
 }
 
 export async function deleteFinishAction(formData: FormData) {
+  const session = await requireSession();
   const id = idFrom(formData);
-  if (await prisma.quote.count({ where: { finishPresetId: id } })) {
+  if (await prisma.quote.count({ where: { finishPresetId: id, userId: session.id } })) {
     redirect("/configuracoes?tab=acabamentos&error=Este acabamento está vinculado a orçamentos e não pode ser excluído");
   }
-  await prisma.finishPreset.delete({ where: { id } });
+  await prisma.finishPreset.deleteMany({ where: { id, userId: session.id } });
   revalidatePath("/configuracoes");
   redirect("/configuracoes?tab=acabamentos&deleted=1");
 }
