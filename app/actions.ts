@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { calculateQuote, calculateResinCostPerMl, parseLocaleNumber, timeToMinutes } from "@/lib/calculations";
-import { finishSchema, printerSchema, quoteSchema, resinSchema, settingsSchema } from "@/lib/validation";
+import { calculateFilamentCostPerGram, calculateQuote, calculateResinCostPerMl, parseLocaleNumber, timeToMinutes } from "@/lib/calculations";
+import { filamentSchema, finishSchema, printerSchema, quoteSchema, resinSchema, settingsSchema } from "@/lib/validation";
 
 export type QuoteActionState = {
   error?: string;
@@ -46,13 +46,16 @@ async function persistQuote(id: number | null, _previousState: QuoteActionState,
     driveLink: optionalText(formData, "driveLink") ?? "",
     notes: optionalText(formData, "notes"),
     freightNotes: optionalText(formData, "freightNotes"),
+    materialType: text(formData, "materialType") === "FILAMENT" ? "FILAMENT" : "RESIN",
     heightMm: parseLocaleNumber(formData.get("heightMm")),
     widthMm: parseLocaleNumber(formData.get("widthMm")),
     depthMm: parseLocaleNumber(formData.get("depthMm")),
     resinMl: parseLocaleNumber(formData.get("resinMl")),
+    filamentGrams: parseLocaleNumber(formData.get("filamentGrams")),
     printHours: parseLocaleNumber(formData.get("printHours")),
     printMinutes: parseLocaleNumber(formData.get("printMinutes")),
     resinId: idFrom(formData, "resinId"),
+    filamentId: idFrom(formData, "filamentId"),
     printerId: idFrom(formData, "printerId"),
     finishPresetId: idFrom(formData, "finishPresetId"),
     freightCost: parseLocaleNumber(formData.get("freightCost")),
@@ -70,15 +73,21 @@ async function persistQuote(id: number | null, _previousState: QuoteActionState,
   }
 
   const input = parsed.data;
-  const [settings, resin, printer, finish] = await Promise.all([
+  const isFilament = input.materialType === "FILAMENT";
+  const [settings, resin, filament, printer, finish] = await Promise.all([
     prisma.appSettings.findUnique({ where: { userId: session.id } }),
-    prisma.resin.findFirst({ where: { id: input.resinId, userId: session.id } }),
+    isFilament ? null : prisma.resin.findFirst({ where: { id: input.resinId, userId: session.id } }),
+    isFilament ? prisma.filament.findFirst({ where: { id: input.filamentId, userId: session.id } }) : null,
     prisma.printer.findFirst({ where: { id: input.printerId, userId: session.id } }),
     prisma.finishPreset.findFirst({ where: { id: input.finishPresetId, userId: session.id } }),
   ]);
 
-  if (!resin || !printer || !finish) {
+  if ((isFilament && !filament) || (!isFilament && !resin) || !printer || !finish) {
     return { error: "Um dos cadastros selecionados não existe mais. Atualize a página e selecione novamente." };
+  }
+
+  if (printer.type !== input.materialType) {
+    return { error: "A impressora selecionada não é compatível com o tipo de material escolhido." };
   }
 
   if (id) {
@@ -88,10 +97,12 @@ async function persistQuote(id: number | null, _previousState: QuoteActionState,
 
   const kwhCost = settings?.kwhCost ?? 1.14;
   const printTimeMinutes = timeToMinutes(input.printHours, input.printMinutes);
-  const resinCostPerMl = resin.manualCostPerMl ?? resin.calculatedCostPerMl;
+  const resinCostPerMl = resin ? resin.manualCostPerMl ?? resin.calculatedCostPerMl : 0;
+  const filamentCostPerGram = filament ? filament.manualCostPerGram ?? filament.calculatedCostPerGram : 0;
+  const materialCost = isFilament ? input.filamentGrams * filamentCostPerGram : input.resinMl * resinCostPerMl;
+
   const totals = calculateQuote({
-    resinMl: input.resinMl,
-    resinCostPerMl,
+    materialCost,
     powerWatts: printer.powerWatts,
     printTimeMinutes,
     kwhCost,
@@ -114,18 +125,22 @@ async function persistQuote(id: number | null, _previousState: QuoteActionState,
     description: input.description || null,
     quantity: input.quantity,
     status: input.status,
-    materialType: "RESIN",
+    materialType: input.materialType,
     driveLink: input.driveLink || null,
     notes: input.notes || null,
     freightNotes: input.freightNotes || null,
     heightMm: input.heightMm,
     widthMm: input.widthMm,
     depthMm: input.depthMm,
-    resinMl: input.resinMl,
+    resinMl: isFilament ? 0 : input.resinMl,
+    filamentGrams: isFilament ? input.filamentGrams : 0,
     printTimeMinutes,
-    resinId: resin.id,
-    resinNameSnapshot: resin.name,
-    resinCostPerMlSnapshot: resinCostPerMl,
+    resinId: resin?.id ?? null,
+    resinNameSnapshot: resin?.name ?? null,
+    resinCostPerMlSnapshot: resin ? resinCostPerMl : null,
+    filamentId: filament?.id ?? null,
+    filamentNameSnapshot: filament?.name ?? null,
+    filamentCostPerGramSnapshot: filament ? filamentCostPerGram : null,
     printerId: printer.id,
     printerNameSnapshot: printer.name,
     printerPowerWattsSnapshot: printer.powerWatts,
@@ -254,11 +269,58 @@ export async function deleteResinAction(formData: FormData) {
   redirect("/configuracoes?tab=resinas&deleted=1");
 }
 
+export async function upsertFilamentAction(formData: FormData) {
+  const session = await requireSession();
+  const id = idFrom(formData);
+  const parsed = filamentSchema.safeParse({
+    name: text(formData, "name"),
+    material: text(formData, "material") || "PLA",
+    manufacturer: optionalText(formData, "manufacturer"),
+    color: optionalText(formData, "color"),
+    purchasePrice: parseLocaleNumber(formData.get("purchasePrice")),
+    purchaseUnit: text(formData, "purchaseUnit"),
+    purchaseQuantity: parseLocaleNumber(formData.get("purchaseQuantity")),
+    manualCostPerGram: optionalNumber(formData, "manualCostPerGram"),
+    notes: optionalText(formData, "notes"),
+    isActive: formData.get("isActive") === "on",
+  });
+  if (!parsed.success) redirect("/configuracoes?tab=filamentos&error=Revise os dados do filamento");
+  const calculatedCostPerGram = calculateFilamentCostPerGram(parsed.data);
+  const data = { ...parsed.data, manualCostPerGram: parsed.data.manualCostPerGram ?? null, calculatedCostPerGram, userId: session.id };
+  try {
+    if (id > 0) await prisma.filament.updateMany({ where: { id, userId: session.id }, data });
+    else await prisma.filament.create({ data });
+  } catch {
+    redirect("/configuracoes?tab=filamentos&error=Já existe um filamento com esse nome");
+  }
+  revalidatePath("/configuracoes");
+  redirect("/configuracoes?tab=filamentos&saved=1");
+}
+
+export async function toggleFilamentAction(formData: FormData) {
+  const session = await requireSession();
+  const id = idFrom(formData);
+  const current = await prisma.filament.findFirst({ where: { id, userId: session.id }, select: { isActive: true } });
+  if (current) await prisma.filament.updateMany({ where: { id, userId: session.id }, data: { isActive: !current.isActive } });
+  revalidatePath("/configuracoes");
+}
+
+export async function deleteFilamentAction(formData: FormData) {
+  const session = await requireSession();
+  const id = idFrom(formData);
+  const inUse = await prisma.quote.count({ where: { filamentId: id, userId: session.id } });
+  if (inUse > 0) redirect("/configuracoes?tab=filamentos&error=Este filamento está vinculado a orçamentos e não pode ser excluído");
+  await prisma.filament.deleteMany({ where: { id, userId: session.id } });
+  revalidatePath("/configuracoes");
+  redirect("/configuracoes?tab=filamentos&deleted=1");
+}
+
 export async function upsertPrinterAction(formData: FormData) {
   const session = await requireSession();
   const id = idFrom(formData);
   const parsed = printerSchema.safeParse({
     name: text(formData, "name"),
+    type: text(formData, "type") === "FILAMENT" ? "FILAMENT" : "RESIN",
     model: optionalText(formData, "model"),
     powerWatts: parseLocaleNumber(formData.get("powerWatts")),
     notes: optionalText(formData, "notes"),

@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { calculateResinCostPerMl } from "../lib/calculations";
+import { calculateFilamentCostPerGram, calculateResinCostPerMl } from "../lib/calculations";
 
 const prisma = new PrismaClient();
 
@@ -56,8 +56,41 @@ async function main() {
     create: {
       userId: admin.id,
       name: "Impressora de resina padrão",
+      type: "RESIN",
       model: "LCD/MSLA",
       powerWatts: 120,
+      isActive: true,
+    },
+  });
+
+  await prisma.filament.upsert({
+    where: { userId_name: { userId: admin.id, name: "PLA padrão" } },
+    update: {},
+    create: {
+      userId: admin.id,
+      name: "PLA padrão",
+      material: "PLA",
+      purchasePrice: 120,
+      purchaseUnit: "KG",
+      purchaseQuantity: 1,
+      calculatedCostPerGram: calculateFilamentCostPerGram({
+        purchasePrice: 120,
+        purchaseUnit: "KG",
+        purchaseQuantity: 1,
+      }),
+      isActive: true,
+    },
+  });
+
+  await prisma.printer.upsert({
+    where: { userId_name: { userId: admin.id, name: "Impressora FDM padrão" } },
+    update: {},
+    create: {
+      userId: admin.id,
+      name: "Impressora FDM padrão",
+      type: "FILAMENT",
+      model: "Bowden 220x220",
+      powerWatts: 200,
       isActive: true,
     },
   });

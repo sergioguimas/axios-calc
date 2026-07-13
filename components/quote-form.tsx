@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useMemo, useRef, useState } from "react";
+import { useMemo, useActionState, useRef, useState } from "react";
 import {
   TbBox,
   TbCheck,
@@ -16,7 +16,7 @@ import {
 } from "react-icons/tb";
 import type { QuoteActionState } from "@/app/actions";
 import { calculateQuote, formatCurrency, formatDuration } from "@/lib/calculations";
-import { QUOTE_STATUSES } from "@/lib/constants";
+import { MATERIAL_TYPE_LABELS, QUOTE_STATUSES } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,8 @@ import { Textarea } from "@/components/ui/textarea";
 
 type OptionBase = { id: number; name: string };
 type ResinOption = OptionBase & { calculatedCostPerMl: number; manualCostPerMl: number | null };
-type PrinterOption = OptionBase & { powerWatts: number; model: string | null };
+type FilamentOption = OptionBase & { calculatedCostPerGram: number; manualCostPerGram: number | null };
+type PrinterOption = OptionBase & { powerWatts: number; model: string | null; type: string };
 type FinishOption = OptionBase & { fixedCost: number; description: string | null };
 
 export type QuoteFormValue = {
@@ -34,6 +35,7 @@ export type QuoteFormValue = {
   description: string | null;
   quantity: number;
   status: string;
+  materialType: string;
   driveLink: string | null;
   notes: string | null;
   freightNotes: string | null;
@@ -41,8 +43,10 @@ export type QuoteFormValue = {
   widthMm: number;
   depthMm: number;
   resinMl: number;
+  filamentGrams: number;
   printTimeMinutes: number;
   resinId: number | null;
+  filamentId: number | null;
   printerId: number | null;
   finishPresetId: number | null;
   freightCost: number;
@@ -66,6 +70,7 @@ export function QuoteForm({
   action,
   settings,
   resins,
+  filaments,
   printers,
   finishes,
   initial,
@@ -73,22 +78,38 @@ export function QuoteForm({
   action: QuoteAction;
   settings: { kwhCost: number; defaultProfitPercent: number; currency: string };
   resins: ResinOption[];
+  filaments: FilamentOption[];
   printers: PrinterOption[];
   finishes: FinishOption[];
   initial?: QuoteFormValue;
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const formRef = useRef<HTMLFormElement>(null);
+
+  const hasResinSetup = resins.length > 0 && printers.some((printer) => printer.type === "RESIN");
+  const hasFilamentSetup = filaments.length > 0 && printers.some((printer) => printer.type === "FILAMENT");
+
+  const defaultMaterialType =
+    initial?.materialType === "FILAMENT" && hasFilamentSetup
+      ? "FILAMENT"
+      : initial?.materialType === "RESIN" && hasResinSetup
+        ? "RESIN"
+        : hasResinSetup
+          ? "RESIN"
+          : "FILAMENT";
+
   const defaults = {
     quantity: initial?.quantity ?? 1,
     heightMm: initial?.heightMm ?? 0,
     widthMm: initial?.widthMm ?? 0,
     depthMm: initial?.depthMm ?? 0,
     resinMl: initial?.resinMl ?? 0,
+    filamentGrams: initial?.filamentGrams ?? 0,
     hours: initial ? Math.floor(initial.printTimeMinutes / 60) : 0,
     minutes: initial ? initial.printTimeMinutes % 60 : 0,
     resinId: initial?.resinId ?? resins[0]?.id ?? 0,
-    printerId: initial?.printerId ?? printers[0]?.id ?? 0,
+    filamentId: initial?.filamentId ?? filaments[0]?.id ?? 0,
+    printerId: initial?.printerId ?? printers.find((printer) => printer.type === defaultMaterialType)?.id ?? printers[0]?.id ?? 0,
     finishId: initial?.finishPresetId ?? finishes[0]?.id ?? 0,
     freightCost: initial?.freightCost ?? 0,
     pricingMode: initial?.pricingMode === "MANUAL" ? "MANUAL" : "PERCENT",
@@ -96,14 +117,17 @@ export function QuoteForm({
     manualFinalPrice: initial?.finalPrice ?? 0,
   } as const;
 
+  const [materialType, setMaterialType] = useState(defaultMaterialType);
   const [quantity, setQuantity] = useState(defaults.quantity);
   const [heightMm, setHeightMm] = useState(defaults.heightMm);
   const [widthMm, setWidthMm] = useState(defaults.widthMm);
   const [depthMm, setDepthMm] = useState(defaults.depthMm);
   const [resinMl, setResinMl] = useState(defaults.resinMl);
+  const [filamentGrams, setFilamentGrams] = useState(defaults.filamentGrams);
   const [hours, setHours] = useState(defaults.hours);
   const [minutes, setMinutes] = useState(defaults.minutes);
   const [resinId, setResinId] = useState(defaults.resinId);
+  const [filamentId, setFilamentId] = useState(defaults.filamentId);
   const [printerId, setPrinterId] = useState(defaults.printerId);
   const [finishId, setFinishId] = useState(defaults.finishId);
   const [freightCost, setFreightCost] = useState(defaults.freightCost);
@@ -111,16 +135,20 @@ export function QuoteForm({
   const [profitPercent, setProfitPercent] = useState(defaults.profitPercent);
   const [manualFinalPrice, setManualFinalPrice] = useState(defaults.manualFinalPrice);
 
+  const filteredPrinters = useMemo(() => printers.filter((printer) => printer.type === materialType), [printers, materialType]);
+
   const selectedResin = resins.find((item) => item.id === resinId) ?? resins[0];
-  const selectedPrinter = printers.find((item) => item.id === printerId) ?? printers[0];
+  const selectedFilament = filaments.find((item) => item.id === filamentId) ?? filaments[0];
+  const selectedPrinter = filteredPrinters.find((item) => item.id === printerId) ?? filteredPrinters[0];
   const selectedFinish = finishes.find((item) => item.id === finishId) ?? finishes[0];
   const resinCostPerMl = selectedResin ? selectedResin.manualCostPerMl ?? selectedResin.calculatedCostPerMl : 0;
+  const filamentCostPerGram = selectedFilament ? selectedFilament.manualCostPerGram ?? selectedFilament.calculatedCostPerGram : 0;
+  const materialCost = materialType === "FILAMENT" ? filamentGrams * filamentCostPerGram : resinMl * resinCostPerMl;
   const totalMinutes = Math.max(0, hours * 60 + minutes);
 
   const totals = useMemo(
     () => calculateQuote({
-      resinMl,
-      resinCostPerMl,
+      materialCost,
       powerWatts: selectedPrinter?.powerWatts ?? 0,
       printTimeMinutes: totalMinutes,
       kwhCost: settings.kwhCost,
@@ -131,30 +159,37 @@ export function QuoteForm({
       profitPercent,
       manualFinalPrice,
     }),
-    [resinMl, resinCostPerMl, selectedPrinter, totalMinutes, settings.kwhCost, selectedFinish, freightCost, quantity, pricingMode, profitPercent, manualFinalPrice],
+    [materialCost, selectedPrinter, totalMinutes, settings.kwhCost, selectedFinish, freightCost, quantity, pricingMode, profitPercent, manualFinalPrice],
   );
 
   const costRows = [
-    { label: "Resina", value: totals.materialCost, icon: TbPackage },
+    { label: MATERIAL_TYPE_LABELS[materialType], value: totals.materialCost, icon: TbPackage },
     { label: "Energia", value: totals.energyCost, icon: TbPrinter },
     { label: "Acabamento", value: totals.finishCost, icon: TbPaint },
     { label: "Frete", value: totals.freightCost, icon: TbTruckDelivery },
   ];
 
+  function selectMaterialType(next: string) {
+    setMaterialType(next);
+    const matchingPrinters = printers.filter((printer) => printer.type === next);
+    setPrinterId(matchingPrinters[0]?.id ?? 0);
+  }
+
   function clearForm() {
     formRef.current?.reset();
-    setQuantity(1); setHeightMm(0); setWidthMm(0); setDepthMm(0); setResinMl(0);
-    setHours(0); setMinutes(0); setResinId(resins[0]?.id ?? 0); setPrinterId(printers[0]?.id ?? 0);
+    setQuantity(1); setHeightMm(0); setWidthMm(0); setDepthMm(0); setResinMl(0); setFilamentGrams(0);
+    setHours(0); setMinutes(0); setResinId(resins[0]?.id ?? 0); setFilamentId(filaments[0]?.id ?? 0);
+    setPrinterId(printers.find((printer) => printer.type === materialType)?.id ?? printers[0]?.id ?? 0);
     setFinishId(finishes[0]?.id ?? 0); setFreightCost(0); setPricingMode("PERCENT");
     setProfitPercent(settings.defaultProfitPercent); setManualFinalPrice(0);
   }
 
-  if (!resins.length || !printers.length || !finishes.length) {
+  if ((!hasResinSetup && !hasFilamentSetup) || !finishes.length) {
     return (
       <div className="panel p-8 text-center">
         <TbInfoCircle className="mx-auto mb-3 text-primary" size={32} />
         <h2 className="font-display text-xl font-semibold">Cadastros básicos necessários</h2>
-        <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Ative ou crie ao menos uma resina, uma impressora e um acabamento antes de montar um orçamento.</p>
+        <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Ative ou crie ao menos um material (resina ou filamento) com uma impressora compatível, e um acabamento, antes de montar um orçamento.</p>
       </div>
     );
   }
@@ -162,6 +197,7 @@ export function QuoteForm({
   return (
     <form ref={formRef} action={formAction} className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       <input type="hidden" name="pricingMode" value={pricingMode} />
+      <input type="hidden" name="materialType" value={materialType} />
       <div className="min-w-0 space-y-4">
         <div className="panel flex divide-x divide-border overflow-hidden">
           {["Dados", "Produção", "Preço"].map((step, index) => (
@@ -195,7 +231,11 @@ export function QuoteForm({
               <Field label="Altura (mm)"><Input name="heightMm" type="number" min="0" step="0.01" value={heightMm} onChange={(e) => setHeightMm(Number(e.target.value))} /></Field>
               <Field label="Largura (mm)"><Input name="widthMm" type="number" min="0" step="0.01" value={widthMm} onChange={(e) => setWidthMm(Number(e.target.value))} /></Field>
               <Field label="Profundidade (mm)"><Input name="depthMm" type="number" min="0" step="0.01" value={depthMm} onChange={(e) => setDepthMm(Number(e.target.value))} /></Field>
-              <Field label="Consumo de resina (ml)" className="sm:col-span-3"><Input name="resinMl" type="number" min="0" step="0.01" value={resinMl} onChange={(e) => setResinMl(Number(e.target.value))} /></Field>
+              {materialType === "FILAMENT" ? (
+                <Field label="Consumo de filamento (g)" className="sm:col-span-3"><Input name="filamentGrams" type="number" min="0" step="0.01" value={filamentGrams} onChange={(e) => setFilamentGrams(Number(e.target.value))} /></Field>
+              ) : (
+                <Field label="Consumo de resina (ml)" className="sm:col-span-3"><Input name="resinMl" type="number" min="0" step="0.01" value={resinMl} onChange={(e) => setResinMl(Number(e.target.value))} /></Field>
+              )}
               <Field label="Tempo — horas"><Input name="printHours" type="number" min="0" step="1" value={hours} onChange={(e) => setHours(Number(e.target.value))} /></Field>
               <Field label="Tempo — minutos"><Input name="printMinutes" type="number" min="0" max="59" step="1" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} /></Field>
               <div className="flex items-end"><p className="w-full border-l-2 border-teal-500/50 bg-white/[0.02] px-3 py-2.5 text-xs text-teal-300">Total: {formatDuration(totalMinutes)}</p></div>
@@ -203,12 +243,25 @@ export function QuoteForm({
           </section>
 
           <section className="panel overflow-hidden">
-            <h2 className="section-title"><TbBox className="text-zinc-300" size={20} /> Resina e impressora</h2>
+            <h2 className="section-title"><TbBox className="text-zinc-300" size={20} /> Material e impressora</h2>
             <div className="grid gap-4 p-4 sm:grid-cols-2">
-              <Field label="Tipo de impressão"><Select disabled value="RESIN"><option value="RESIN">Resina</option><option value="FILAMENT">Filamento — em breve</option></Select></Field>
-              <Field label="Resina utilizada"><Select name="resinId" value={resinId} onChange={(e) => setResinId(Number(e.target.value))}>{resins.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>
-              <Field label="Impressora" className="sm:col-span-2"><Select name="printerId" value={printerId} onChange={(e) => setPrinterId(Number(e.target.value))}>{printers.map((item) => <option key={item.id} value={item.id}>{item.name}{item.model ? ` · ${item.model}` : ""}</option>)}</Select></Field>
-              <div className="rounded-md border border-border bg-black/15 px-3 py-3 text-xs text-muted-foreground"><span className="block text-zinc-200">{formatCurrency(resinCostPerMl, settings.currency)}/ml</span>Custo efetivo da resina</div>
+              <Field label="Tipo de impressão">
+                <Select value={materialType} onChange={(e) => selectMaterialType(e.target.value)}>
+                  {hasResinSetup ? <option value="RESIN">Resina</option> : null}
+                  {hasFilamentSetup ? <option value="FILAMENT">Filamento</option> : null}
+                </Select>
+              </Field>
+              {materialType === "FILAMENT" ? (
+                <Field label="Filamento utilizado"><Select name="filamentId" value={filamentId} onChange={(e) => setFilamentId(Number(e.target.value))}>{filaments.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>
+              ) : (
+                <Field label="Resina utilizada"><Select name="resinId" value={resinId} onChange={(e) => setResinId(Number(e.target.value))}>{resins.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select></Field>
+              )}
+              <Field label="Impressora" className="sm:col-span-2"><Select name="printerId" value={printerId} onChange={(e) => setPrinterId(Number(e.target.value))}>{filteredPrinters.map((item) => <option key={item.id} value={item.id}>{item.name}{item.model ? ` · ${item.model}` : ""}</option>)}</Select></Field>
+              {materialType === "FILAMENT" ? (
+                <div className="rounded-md border border-border bg-black/15 px-3 py-3 text-xs text-muted-foreground"><span className="block text-zinc-200">{formatCurrency(filamentCostPerGram, settings.currency)}/g</span>Custo efetivo do filamento</div>
+              ) : (
+                <div className="rounded-md border border-border bg-black/15 px-3 py-3 text-xs text-muted-foreground"><span className="block text-zinc-200">{formatCurrency(resinCostPerMl, settings.currency)}/ml</span>Custo efetivo da resina</div>
+              )}
               <div className="rounded-md border border-border bg-black/15 px-3 py-3 text-xs text-muted-foreground"><span className="block text-zinc-200">{selectedPrinter?.powerWatts ?? 0} W</span>Potência média da máquina</div>
             </div>
           </section>

@@ -22,6 +22,7 @@ model User {
   sessions      Session[]
   appSettings   AppSettings?
   resins        Resin[]
+  filaments     Filament[]
   printers      Printer[]
   finishPresets FinishPreset[]
   quotes        Quote[]
@@ -71,11 +72,34 @@ model Resin {
   @@unique([userId, name])
 }
 
+model Filament {
+  id                    Int      @id @default(autoincrement())
+  userId                Int
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name                  String
+  material              String   @default("PLA")
+  manufacturer          String?
+  color                 String?
+  purchasePrice         Float
+  purchaseUnit          String
+  purchaseQuantity      Float
+  calculatedCostPerGram Float
+  manualCostPerGram     Float?
+  notes                 String?
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  quotes                Quote[]
+
+  @@unique([userId, name])
+}
+
 model Printer {
   id         Int      @id @default(autoincrement())
   userId     Int
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name       String
+  type       String   @default("RESIN")
   model      String?
   powerWatts Float
   notes      String?
@@ -103,48 +127,53 @@ model FinishPreset {
 }
 
 model Quote {
-  id                        Int           @id @default(autoincrement())
-  userId                    Int
-  user                      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  modelName                 String
-  customerName              String?
-  description               String?
-  quantity                  Int           @default(1)
-  status                    String        @default("QUOTE")
-  materialType              String        @default("RESIN")
-  driveLink                 String?
-  notes                     String?
-  freightNotes              String?
-  heightMm                  Float         @default(0)
-  widthMm                   Float         @default(0)
-  depthMm                   Float         @default(0)
-  resinMl                   Float         @default(0)
-  printTimeMinutes          Int           @default(0)
-  resinId                   Int?
-  resin                     Resin?        @relation(fields: [resinId], references: [id], onDelete: Restrict)
-  resinNameSnapshot         String
-  resinCostPerMlSnapshot    Float
-  printerId                 Int?
-  printer                   Printer?      @relation(fields: [printerId], references: [id], onDelete: Restrict)
-  printerNameSnapshot       String
-  printerPowerWattsSnapshot Float
-  finishPresetId            Int?
-  finishPreset              FinishPreset? @relation(fields: [finishPresetId], references: [id], onDelete: Restrict)
-  finishNameSnapshot        String
-  finishCostSnapshot        Float
-  materialCost              Float
-  energyCost                Float
-  finishCost                Float
-  freightCost               Float
-  totalCost                 Float
-  pricingMode               String        @default("PERCENT")
-  profitPercent             Float
-  profitValue               Float
-  finalPrice                Float
-  unitCost                  Float
-  unitPrice                 Float
-  createdAt                 DateTime      @default(now())
-  updatedAt                 DateTime      @updatedAt
+  id                          Int           @id @default(autoincrement())
+  userId                      Int
+  user                        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  modelName                   String
+  customerName                String?
+  description                 String?
+  quantity                    Int           @default(1)
+  status                      String        @default("QUOTE")
+  materialType                String        @default("RESIN")
+  driveLink                   String?
+  notes                       String?
+  freightNotes                String?
+  heightMm                    Float         @default(0)
+  widthMm                     Float         @default(0)
+  depthMm                     Float         @default(0)
+  resinMl                     Float         @default(0)
+  filamentGrams               Float         @default(0)
+  printTimeMinutes            Int           @default(0)
+  resinId                     Int?
+  resin                       Resin?        @relation(fields: [resinId], references: [id], onDelete: Restrict)
+  resinNameSnapshot           String?
+  resinCostPerMlSnapshot      Float?
+  filamentId                  Int?
+  filament                    Filament?     @relation(fields: [filamentId], references: [id], onDelete: Restrict)
+  filamentNameSnapshot        String?
+  filamentCostPerGramSnapshot Float?
+  printerId                   Int?
+  printer                     Printer?      @relation(fields: [printerId], references: [id], onDelete: Restrict)
+  printerNameSnapshot         String
+  printerPowerWattsSnapshot   Float
+  finishPresetId              Int?
+  finishPreset                FinishPreset? @relation(fields: [finishPresetId], references: [id], onDelete: Restrict)
+  finishNameSnapshot          String
+  finishCostSnapshot          Float
+  materialCost                Float
+  energyCost                  Float
+  finishCost                  Float
+  freightCost                 Float
+  totalCost                   Float
+  pricingMode                 String        @default("PERCENT")
+  profitPercent               Float
+  profitValue                 Float
+  finalPrice                  Float
+  unitCost                    Float
+  unitPrice                   Float
+  createdAt                   DateTime      @default(now())
+  updatedAt                   DateTime      @updatedAt
 
   @@index([userId])
   @@index([status])

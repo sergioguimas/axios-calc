@@ -9,7 +9,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { formatCurrency, formatDuration, formatPercent } from "@/lib/calculations";
-import { QUOTE_STATUSES, STATUS_LABELS } from "@/lib/constants";
+import { MATERIAL_TYPE_LABELS, QUOTE_STATUSES, STATUS_LABELS } from "@/lib/constants";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
@@ -26,8 +26,9 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
   const quote = await prisma.quote.findFirst({ where: { id: Number(id), userId: session.id } });
   if (!quote) notFound();
 
+  const isFilament = quote.materialType === "FILAMENT";
   const costs = [
-    ["Resina", quote.materialCost],
+    [MATERIAL_TYPE_LABELS[quote.materialType], quote.materialCost],
     ["Energia", quote.energyCost],
     ["Acabamento", quote.finishCost],
     ["Frete", quote.freightCost],
@@ -51,7 +52,21 @@ export default async function QuoteDetailPage({ params }: { params: Promise<{ id
 
           <Card>
             <CardHeader className="border-b border-border pb-4"><div className="flex items-center gap-2"><TbRulerMeasure className="text-primary" size={21} /><h2 className="font-display text-lg font-semibold">Ficha técnica da impressão</h2></div></CardHeader>
-            <CardContent className="pt-5"><dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4"><Fact label="Dimensões (A × L × P)" value={`${quote.heightMm.toLocaleString("pt-BR")} × ${quote.widthMm.toLocaleString("pt-BR")} × ${quote.depthMm.toLocaleString("pt-BR")} mm`} /><Fact label="Resina prevista" value={`${quote.resinMl.toLocaleString("pt-BR")} ml`} /><Fact label="Tempo de impressão" value={formatDuration(quote.printTimeMinutes)} /><Fact label="Material" value="Resina" /><Fact label="Resina utilizada" value={quote.resinNameSnapshot} /><Fact label="Custo preservado" value={`${formatCurrency(quote.resinCostPerMlSnapshot)}/ml`} /><Fact label="Impressora" value={quote.printerNameSnapshot} /><Fact label="Potência preservada" value={`${quote.printerPowerWattsSnapshot.toLocaleString("pt-BR")} W`} /></dl></CardContent>
+            <CardContent className="pt-5">
+              <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                <Fact label="Dimensões (A × L × P)" value={`${quote.heightMm.toLocaleString("pt-BR")} × ${quote.widthMm.toLocaleString("pt-BR")} × ${quote.depthMm.toLocaleString("pt-BR")} mm`} />
+                {isFilament
+                  ? <Fact label="Filamento previsto" value={`${quote.filamentGrams.toLocaleString("pt-BR")} g`} />
+                  : <Fact label="Resina prevista" value={`${quote.resinMl.toLocaleString("pt-BR")} ml`} />}
+                <Fact label="Tempo de impressão" value={formatDuration(quote.printTimeMinutes)} />
+                <Fact label="Material" value={MATERIAL_TYPE_LABELS[quote.materialType]} />
+                {isFilament
+                  ? <><Fact label="Filamento utilizado" value={quote.filamentNameSnapshot} /><Fact label="Custo preservado" value={quote.filamentCostPerGramSnapshot != null ? `${formatCurrency(quote.filamentCostPerGramSnapshot)}/g` : "—"} /></>
+                  : <><Fact label="Resina utilizada" value={quote.resinNameSnapshot} /><Fact label="Custo preservado" value={quote.resinCostPerMlSnapshot != null ? `${formatCurrency(quote.resinCostPerMlSnapshot)}/ml` : "—"} /></>}
+                <Fact label="Impressora" value={quote.printerNameSnapshot} />
+                <Fact label="Potência preservada" value={`${quote.printerPowerWattsSnapshot.toLocaleString("pt-BR")} W`} />
+              </dl>
+            </CardContent>
           </Card>
 
           <Card>

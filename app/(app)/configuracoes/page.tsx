@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   TbBolt,
   TbCheck,
+  TbDisc,
   TbEdit,
   TbFlask,
   TbPaint,
@@ -9,13 +10,16 @@ import {
   TbSettings,
 } from "react-icons/tb";
 import {
+  deleteFilamentAction,
   deleteFinishAction,
   deletePrinterAction,
   deleteResinAction,
+  toggleFilamentAction,
   toggleFinishAction,
   togglePrinterAction,
   toggleResinAction,
   updateSettingsAction,
+  upsertFilamentAction,
   upsertFinishAction,
   upsertPrinterAction,
   upsertResinAction,
@@ -29,7 +33,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/calculations";
-import { UNIT_LABELS } from "@/lib/constants";
+import { FILAMENT_MATERIALS, MATERIAL_TYPE_LABELS, UNIT_LABELS } from "@/lib/constants";
 import { requireSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
@@ -39,6 +43,7 @@ export const dynamic = "force-dynamic";
 const tabs = [
   { value: "geral", label: "Geral", icon: TbSettings },
   { value: "resinas", label: "Resinas", icon: TbFlask },
+  { value: "filamentos", label: "Filamentos", icon: TbDisc },
   { value: "impressoras", label: "Impressoras", icon: TbPrinter },
   { value: "acabamentos", label: "Acabamentos", icon: TbPaint },
 ];
@@ -58,14 +63,16 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const session = await requireSession();
   const params = await searchParams;
   const activeTab = tabs.some((tab) => tab.value === params.tab) ? params.tab! : "geral";
-  const [settings, resins, printers, finishes] = await Promise.all([
+  const [settings, resins, filaments, printers, finishes] = await Promise.all([
     prisma.appSettings.findUnique({ where: { userId: session.id } }),
     prisma.resin.findMany({ where: { userId: session.id }, orderBy: [{ isActive: "desc" }, { name: "asc" }] }),
+    prisma.filament.findMany({ where: { userId: session.id }, orderBy: [{ isActive: "desc" }, { name: "asc" }] }),
     prisma.printer.findMany({ where: { userId: session.id }, orderBy: [{ isActive: "desc" }, { name: "asc" }] }),
     prisma.finishPreset.findMany({ where: { userId: session.id }, orderBy: [{ isActive: "desc" }, { fixedCost: "asc" }] }),
   ]);
   const editId = Number(params.edit || 0);
   const editResin = activeTab === "resinas" ? resins.find((item) => item.id === editId) : undefined;
+  const editFilament = activeTab === "filamentos" ? filaments.find((item) => item.id === editId) : undefined;
   const editPrinter = activeTab === "impressoras" ? printers.find((item) => item.id === editId) : undefined;
   const editFinish = activeTab === "acabamentos" ? finishes.find((item) => item.id === editId) : undefined;
 
@@ -117,10 +124,34 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         </div>
       ) : null}
 
+      {activeTab === "filamentos" ? (
+        <div className="grid items-start gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
+          <form action={upsertFilamentAction} className="panel overflow-hidden xl:sticky xl:top-6">
+            <input type="hidden" name="id" value={editFilament?.id ?? ""} />
+            <div className="border-b border-border px-5 py-4"><h2 className="font-display text-lg font-semibold">{editFilament ? "Editar filamento" : "Novo filamento"}</h2><p className="mt-1 text-xs text-muted-foreground">O custo por grama é calculado automaticamente.</p></div>
+            <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-2">
+              <FormField label="Nome" className="sm:col-span-2"><Input name="name" defaultValue={editFilament?.name ?? ""} required /></FormField>
+              <FormField label="Material"><Select name="material" defaultValue={editFilament?.material ?? "PLA"}>{FILAMENT_MATERIALS.map((material) => <option key={material} value={material}>{material}</option>)}</Select></FormField>
+              <FormField label="Cor"><Input name="color" defaultValue={editFilament?.color ?? ""} /></FormField>
+              <FormField label="Fabricante" className="sm:col-span-2"><Input name="manufacturer" defaultValue={editFilament?.manufacturer ?? ""} /></FormField>
+              <FormField label="Preço pago"><Input name="purchasePrice" type="number" min="0" step="0.01" defaultValue={editFilament?.purchasePrice ?? ""} required /></FormField>
+              <FormField label="Unidade"><Select name="purchaseUnit" defaultValue={editFilament?.purchaseUnit ?? "KG"}><option value="KG">kg</option><option value="G">g</option></Select></FormField>
+              <FormField label="Quantidade comprada" className="sm:col-span-2"><Input name="purchaseQuantity" type="number" min="0.0001" step="0.0001" defaultValue={editFilament?.purchaseQuantity ?? 1} required /></FormField>
+              <FormField label="Custo manual por grama" className="sm:col-span-2"><Input name="manualCostPerGram" type="number" min="0" step="0.000001" defaultValue={editFilament?.manualCostPerGram ?? ""} placeholder="Opcional; substitui o calculado" /></FormField>
+              {editFilament ? <div className="sm:col-span-2 border-l-2 border-teal-500/50 bg-white/[0.02] p-3 text-xs text-muted-foreground">Custo calculado atual: <strong className="text-teal-300">{formatCurrency(editFilament.calculatedCostPerGram)}/g</strong></div> : null}
+              <FormField label="Observações" className="sm:col-span-2"><Textarea name="notes" defaultValue={editFilament?.notes ?? ""} className="min-h-20" /></FormField>
+              <label className="sm:col-span-2 flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="isActive" defaultChecked={editFilament?.isActive ?? true} className="accent-amber-500" /> Filamento ativo</label>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-border px-5 py-4">{editFilament ? <Link href="/configuracoes?tab=filamentos" className={cn(buttonVariants({ variant: "ghost" }))}>Cancelar</Link> : null}<SubmitButton><TbCheck /> {editFilament ? "Salvar" : "Cadastrar"}</SubmitButton></div>
+          </form>
+          <div className="panel overflow-x-auto"><table className="data-table"><thead><tr><th>Filamento</th><th>Compra</th><th>Custo por grama</th><th>Status</th><th className="text-right">Ações</th></tr></thead><tbody>{filaments.map((filament) => <tr key={filament.id}><td><strong className="text-zinc-100">{filament.name}</strong><span className="mt-1 block text-xs text-muted-foreground">{filament.material} · {[filament.manufacturer, filament.color].filter(Boolean).join(" · ") || "Sem fabricante/cor"}</span></td><td className="text-muted-foreground">{formatCurrency(filament.purchasePrice)} · {filament.purchaseQuantity.toLocaleString("pt-BR")} {UNIT_LABELS[filament.purchaseUnit]}</td><td><span className="font-semibold tabular-nums text-primary">{formatCurrency(filament.manualCostPerGram ?? filament.calculatedCostPerGram)}</span>{filament.manualCostPerGram != null ? <span className="block text-[10px] text-muted-foreground">manual</span> : null}</td><td><Badge status={filament.isActive ? "PRODUCED" : "ARCHIVED"}>{filament.isActive ? "Ativo" : "Inativo"}</Badge></td><td><div className="flex justify-end gap-1"><Link href={`/configuracoes?tab=filamentos&edit=${filament.id}`} className={cn(buttonVariants({ variant: "ghost", size: "icon" }))} aria-label="Editar"><TbEdit /></Link><form action={toggleFilamentAction}><input type="hidden" name="id" value={filament.id} /><SubmitButton variant="ghost" size="sm">{filament.isActive ? "Inativar" : "Ativar"}</SubmitButton></form><form action={deleteFilamentAction}><input type="hidden" name="id" value={filament.id} /><ConfirmSubmit size="icon" message={`Excluir o filamento “${filament.name}”?`} aria-label="Excluir" /></form></div></td></tr>)}</tbody></table></div>
+        </div>
+      ) : null}
+
       {activeTab === "impressoras" ? (
         <div className="grid items-start gap-4 xl:grid-cols-[380px_minmax(0,1fr)]">
-          <form action={upsertPrinterAction} className="panel overflow-hidden xl:sticky xl:top-6"><input type="hidden" name="id" value={editPrinter?.id ?? ""} /><div className="border-b border-border px-5 py-4"><h2 className="font-display text-lg font-semibold">{editPrinter ? "Editar impressora" : "Nova impressora"}</h2><p className="mt-1 text-xs text-muted-foreground">A potência média define o custo de energia.</p></div><div className="grid gap-4 p-5"><FormField label="Nome"><Input name="name" defaultValue={editPrinter?.name ?? ""} required /></FormField><FormField label="Modelo"><Input name="model" defaultValue={editPrinter?.model ?? ""} /></FormField><FormField label="Potência média (W)"><Input name="powerWatts" type="number" min="0" step="0.01" defaultValue={editPrinter?.powerWatts ?? ""} required /></FormField><FormField label="Observações"><Textarea name="notes" defaultValue={editPrinter?.notes ?? ""} /></FormField><label className="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="isActive" defaultChecked={editPrinter?.isActive ?? true} className="accent-amber-500" /> Impressora ativa</label></div><div className="flex justify-end gap-2 border-t border-border px-5 py-4">{editPrinter ? <Link href="/configuracoes?tab=impressoras" className={cn(buttonVariants({ variant: "ghost" }))}>Cancelar</Link> : null}<SubmitButton><TbCheck /> {editPrinter ? "Salvar" : "Cadastrar"}</SubmitButton></div></form>
-          <div className="panel overflow-x-auto"><table className="data-table"><thead><tr><th>Impressora</th><th>Potência</th><th>Status</th><th className="text-right">Ações</th></tr></thead><tbody>{printers.map((printer) => <tr key={printer.id}><td><strong className="text-zinc-100">{printer.name}</strong><span className="mt-1 block text-xs text-muted-foreground">{printer.model || "Modelo não informado"}</span></td><td className="tabular-nums"><TbBolt className="mr-1 inline text-primary" />{printer.powerWatts.toLocaleString("pt-BR")} W</td><td><Badge status={printer.isActive ? "PRODUCED" : "ARCHIVED"}>{printer.isActive ? "Ativa" : "Inativa"}</Badge></td><td><div className="flex justify-end gap-1"><Link href={`/configuracoes?tab=impressoras&edit=${printer.id}`} className={cn(buttonVariants({ variant: "ghost", size: "icon" }))} aria-label="Editar"><TbEdit /></Link><form action={togglePrinterAction}><input type="hidden" name="id" value={printer.id} /><SubmitButton variant="ghost" size="sm">{printer.isActive ? "Inativar" : "Ativar"}</SubmitButton></form><form action={deletePrinterAction}><input type="hidden" name="id" value={printer.id} /><ConfirmSubmit size="icon" message={`Excluir a impressora “${printer.name}”?`} aria-label="Excluir" /></form></div></td></tr>)}</tbody></table></div>
+          <form action={upsertPrinterAction} className="panel overflow-hidden xl:sticky xl:top-6"><input type="hidden" name="id" value={editPrinter?.id ?? ""} /><div className="border-b border-border px-5 py-4"><h2 className="font-display text-lg font-semibold">{editPrinter ? "Editar impressora" : "Nova impressora"}</h2><p className="mt-1 text-xs text-muted-foreground">A potência média define o custo de energia.</p></div><div className="grid gap-4 p-5"><FormField label="Nome"><Input name="name" defaultValue={editPrinter?.name ?? ""} required /></FormField><FormField label="Tipo"><Select name="type" defaultValue={editPrinter?.type ?? "RESIN"}><option value="RESIN">Resina</option><option value="FILAMENT">Filamento</option></Select></FormField><FormField label="Modelo"><Input name="model" defaultValue={editPrinter?.model ?? ""} /></FormField><FormField label="Potência média (W)"><Input name="powerWatts" type="number" min="0" step="0.01" defaultValue={editPrinter?.powerWatts ?? ""} required /></FormField><FormField label="Observações"><Textarea name="notes" defaultValue={editPrinter?.notes ?? ""} /></FormField><label className="flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="isActive" defaultChecked={editPrinter?.isActive ?? true} className="accent-amber-500" /> Impressora ativa</label></div><div className="flex justify-end gap-2 border-t border-border px-5 py-4">{editPrinter ? <Link href="/configuracoes?tab=impressoras" className={cn(buttonVariants({ variant: "ghost" }))}>Cancelar</Link> : null}<SubmitButton><TbCheck /> {editPrinter ? "Salvar" : "Cadastrar"}</SubmitButton></div></form>
+          <div className="panel overflow-x-auto"><table className="data-table"><thead><tr><th>Impressora</th><th>Tipo</th><th>Potência</th><th>Status</th><th className="text-right">Ações</th></tr></thead><tbody>{printers.map((printer) => <tr key={printer.id}><td><strong className="text-zinc-100">{printer.name}</strong><span className="mt-1 block text-xs text-muted-foreground">{printer.model || "Modelo não informado"}</span></td><td className="text-muted-foreground">{MATERIAL_TYPE_LABELS[printer.type]}</td><td className="tabular-nums"><TbBolt className="mr-1 inline text-primary" />{printer.powerWatts.toLocaleString("pt-BR")} W</td><td><Badge status={printer.isActive ? "PRODUCED" : "ARCHIVED"}>{printer.isActive ? "Ativa" : "Inativa"}</Badge></td><td><div className="flex justify-end gap-1"><Link href={`/configuracoes?tab=impressoras&edit=${printer.id}`} className={cn(buttonVariants({ variant: "ghost", size: "icon" }))} aria-label="Editar"><TbEdit /></Link><form action={togglePrinterAction}><input type="hidden" name="id" value={printer.id} /><SubmitButton variant="ghost" size="sm">{printer.isActive ? "Inativar" : "Ativar"}</SubmitButton></form><form action={deletePrinterAction}><input type="hidden" name="id" value={printer.id} /><ConfirmSubmit size="icon" message={`Excluir a impressora “${printer.name}”?`} aria-label="Excluir" /></form></div></td></tr>)}</tbody></table></div>
         </div>
       ) : null}
 

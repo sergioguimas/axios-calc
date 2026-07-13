@@ -16,3 +16,14 @@ export const UNIT_LABELS: Record<string, string> = {
   L: "litro",
   ML: "ml",
 };
+
+export const MATERIAL_TYPES = [
+  { value: "RESIN", label: "Resina" },
+  { value: "FILAMENT", label: "Filamento" },
+] as const;
+
+export const MATERIAL_TYPE_LABELS = Object.fromEntries(
+  MATERIAL_TYPES.map((type) => [type.value, type.label]),
+) as Record<string, string>;
+
+export const FILAMENT_MATERIALS = ["PLA", "ABS", "PETG", "TPU", "Nylon", "Outro"] as const;

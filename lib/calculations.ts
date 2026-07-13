@@ -30,6 +30,21 @@ export function calculateResinCostPerMl(input: {
   return milliliters > 0 ? round(purchasePrice / milliliters, 6) : 0;
 }
 
+export function calculateFilamentCostPerGram(input: {
+  purchasePrice: number;
+  purchaseUnit: "KG" | "G" | string;
+  purchaseQuantity: number;
+}) {
+  const { purchasePrice, purchaseUnit, purchaseQuantity } = input;
+  if (purchasePrice < 0 || purchaseQuantity <= 0) return 0;
+
+  let grams = 0;
+  if (purchaseUnit === "KG") grams = purchaseQuantity * 1000;
+  else if (purchaseUnit === "G") grams = purchaseQuantity;
+
+  return grams > 0 ? round(purchasePrice / grams, 6) : 0;
+}
+
 export function timeToMinutes(hours: number, minutes: number) {
   return Math.max(0, Math.round(hours * 60 + minutes));
 }
@@ -44,8 +59,7 @@ export function calculateEnergyCost(powerWatts: number, printTimeMinutes: number
 }
 
 export function calculateQuote(input: {
-  resinMl: number;
-  resinCostPerMl: number;
+  materialCost: number;
   powerWatts: number;
   printTimeMinutes: number;
   kwhCost: number;
@@ -56,7 +70,7 @@ export function calculateQuote(input: {
   profitPercent: number;
   manualFinalPrice: number;
 }) {
-  const materialCost = round(Math.max(0, input.resinMl) * Math.max(0, input.resinCostPerMl));
+  const materialCost = round(Math.max(0, input.materialCost));
   const energyCost = calculateEnergyCost(input.powerWatts, input.printTimeMinutes, input.kwhCost);
   const finishCost = round(Math.max(0, input.finishCost));
   const freightCost = round(Math.max(0, input.freightCost));

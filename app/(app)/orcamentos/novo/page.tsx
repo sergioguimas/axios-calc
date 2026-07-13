@@ -9,9 +9,10 @@ export const dynamic = "force-dynamic";
 
 export default async function NewQuotePage() {
   const session = await requireSession();
-  const [settings, resins, printers, finishes] = await Promise.all([
+  const [settings, resins, filaments, printers, finishes] = await Promise.all([
     prisma.appSettings.findUnique({ where: { userId: session.id } }),
     prisma.resin.findMany({ where: { userId: session.id, isActive: true }, orderBy: { name: "asc" } }),
+    prisma.filament.findMany({ where: { userId: session.id, isActive: true }, orderBy: { name: "asc" } }),
     prisma.printer.findMany({ where: { userId: session.id, isActive: true }, orderBy: { name: "asc" } }),
     prisma.finishPreset.findMany({ where: { userId: session.id, isActive: true }, orderBy: [{ fixedCost: "asc" }, { name: "asc" }] }),
   ]);
@@ -30,7 +31,8 @@ export default async function NewQuotePage() {
         action={createQuoteAction}
         settings={{ kwhCost: appSettings.kwhCost, defaultProfitPercent: appSettings.defaultProfitPercent, currency: appSettings.currency }}
         resins={resins.map(({ id, name, calculatedCostPerMl, manualCostPerMl }) => ({ id, name, calculatedCostPerMl, manualCostPerMl }))}
-        printers={printers.map(({ id, name, powerWatts, model }) => ({ id, name, powerWatts, model }))}
+        filaments={filaments.map(({ id, name, calculatedCostPerGram, manualCostPerGram }) => ({ id, name, calculatedCostPerGram, manualCostPerGram }))}
+        printers={printers.map(({ id, name, powerWatts, model, type }) => ({ id, name, powerWatts, model, type }))}
         finishes={finishes.map(({ id, name, fixedCost, description }) => ({ id, name, fixedCost, description }))}
       />
     </>

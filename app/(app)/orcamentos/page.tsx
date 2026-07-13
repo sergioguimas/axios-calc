@@ -54,7 +54,7 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
               <tr key={quote.id}>
                 <td><Link href={`/orcamentos/${quote.id}`} className="font-semibold text-zinc-100 hover:text-primary">{quote.modelName}</Link><span className="mt-1 block text-xs text-muted-foreground">{quote.customerName || "Cliente não informado"}</span></td>
                 <td><Badge status={quote.status}>{STATUS_LABELS[quote.status]}</Badge></td>
-                <td className="text-xs text-muted-foreground">{quote.resinMl.toLocaleString("pt-BR")} ml · {Math.floor(quote.printTimeMinutes / 60)}h {quote.printTimeMinutes % 60}min<br />{quote.quantity} peça{quote.quantity === 1 ? "" : "s"}</td>
+                <td className="text-xs text-muted-foreground">{quote.materialType === "FILAMENT" ? `${quote.filamentGrams.toLocaleString("pt-BR")} g` : `${quote.resinMl.toLocaleString("pt-BR")} ml`} · {Math.floor(quote.printTimeMinutes / 60)}h {quote.printTimeMinutes % 60}min<br />{quote.quantity} peça{quote.quantity === 1 ? "" : "s"}</td>
                 <td className="tabular-nums text-muted-foreground">{formatCurrency(quote.totalCost)}</td>
                 <td className="font-semibold tabular-nums text-primary">{formatCurrency(quote.finalPrice)}</td>
                 <td className="text-muted-foreground">{quote.createdAt.toLocaleDateString("pt-BR")}</td>

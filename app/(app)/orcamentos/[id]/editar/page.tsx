@@ -13,10 +13,11 @@ export default async function EditQuotePage({ params }: { params: Promise<{ id: 
   const session = await requireSession();
   const { id: rawId } = await params;
   const id = Number(rawId);
-  const [quote, settings, resins, printers, finishes] = await Promise.all([
+  const [quote, settings, resins, filaments, printers, finishes] = await Promise.all([
     prisma.quote.findFirst({ where: { id, userId: session.id } }),
     prisma.appSettings.findUnique({ where: { userId: session.id } }),
     prisma.resin.findMany({ where: { userId: session.id, OR: [{ isActive: true }, { quotes: { some: { id } } }] }, orderBy: { name: "asc" } }),
+    prisma.filament.findMany({ where: { userId: session.id, OR: [{ isActive: true }, { quotes: { some: { id } } }] }, orderBy: { name: "asc" } }),
     prisma.printer.findMany({ where: { userId: session.id, OR: [{ isActive: true }, { quotes: { some: { id } } }] }, orderBy: { name: "asc" } }),
     prisma.finishPreset.findMany({ where: { userId: session.id, OR: [{ isActive: true }, { quotes: { some: { id } } }] }, orderBy: [{ fixedCost: "asc" }, { name: "asc" }] }),
   ]);
@@ -31,7 +32,8 @@ export default async function EditQuotePage({ params }: { params: Promise<{ id: 
         action={action}
         settings={{ kwhCost: appSettings.kwhCost, defaultProfitPercent: appSettings.defaultProfitPercent, currency: appSettings.currency }}
         resins={resins.map(({ id, name, calculatedCostPerMl, manualCostPerMl }) => ({ id, name, calculatedCostPerMl, manualCostPerMl }))}
-        printers={printers.map(({ id, name, powerWatts, model }) => ({ id, name, powerWatts, model }))}
+        filaments={filaments.map(({ id, name, calculatedCostPerGram, manualCostPerGram }) => ({ id, name, calculatedCostPerGram, manualCostPerGram }))}
+        printers={printers.map(({ id, name, powerWatts, model, type }) => ({ id, name, powerWatts, model, type }))}
         finishes={finishes.map(({ id, name, fixedCost, description }) => ({ id, name, fixedCost, description }))}
         initial={{
           modelName: quote.modelName,
@@ -39,6 +41,7 @@ export default async function EditQuotePage({ params }: { params: Promise<{ id: 
           description: quote.description,
           quantity: quote.quantity,
           status: quote.status,
+          materialType: quote.materialType,
           driveLink: quote.driveLink,
           notes: quote.notes,
           freightNotes: quote.freightNotes,
@@ -46,8 +49,10 @@ export default async function EditQuotePage({ params }: { params: Promise<{ id: 
           widthMm: quote.widthMm,
           depthMm: quote.depthMm,
           resinMl: quote.resinMl,
+          filamentGrams: quote.filamentGrams,
           printTimeMinutes: quote.printTimeMinutes,
           resinId: quote.resinId,
+          filamentId: quote.filamentId,
           printerId: quote.printerId,
           finishPresetId: quote.finishPresetId,
           freightCost: quote.freightCost,
