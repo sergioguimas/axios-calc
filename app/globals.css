@@ -16,14 +16,20 @@
   --primary: 33 93% 54%;
   --primary-foreground: 200 40% 4%;
   --destructive: 0 72% 51%;
-  --radius: 0.45rem;
+  --radius: 0.2rem;
+  --radius-action: 0.35rem;
 }
 
 * { border-color: hsl(var(--border)); }
 html { background: #080d10; }
 body {
   min-height: 100vh;
-  background: #080d10;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    #080d10;
+  background-size: 28px 28px, 28px 28px, auto;
+  background-position: -1px -1px;
   color: hsl(var(--foreground));
   font-family: "Inter Variable", system-ui, sans-serif;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
@@ -35,13 +41,16 @@ body {
 
 @layer components {
   .panel {
-    @apply rounded-lg border border-border bg-card;
+    @apply rounded-md border border-border bg-card;
   }
   .section-title {
     @apply flex items-center gap-2 border-b border-border px-4 py-3 font-display text-base font-semibold text-zinc-100;
   }
   .metric-label {
     @apply text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground;
+  }
+  .callout {
+    @apply border-l-2 bg-white/[0.02] px-3 py-2.5 text-xs text-muted-foreground;
   }
   .data-table {
     @apply w-full min-w-[760px] border-collapse text-left text-sm;

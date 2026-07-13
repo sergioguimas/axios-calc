@@ -62,12 +62,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 onClick={() => setOpen(false)}
                 className={cn(
-                  "group relative flex h-11 items-center gap-2.5 rounded-md px-2.5 text-[13px] transition",
-                  active ? "bg-primary/10 text-primary" : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100",
+                  "flex h-11 items-center gap-2.5 border-l-2 pl-2.5 pr-2.5 text-[13px] transition",
+                  active
+                    ? "border-primary text-primary font-semibold"
+                    : "border-transparent text-zinc-400 hover:border-white/15 hover:text-zinc-100",
                 )}
               >
-                {active ? <span className="absolute -left-3 h-7 w-0.5 bg-primary" /> : null}
-                <Icon size={21} strokeWidth={1.6} />
+                <Icon size={20} strokeWidth={active ? 2 : 1.6} />
                 <span className="whitespace-nowrap">{item.label}</span>
               </Link>
             );

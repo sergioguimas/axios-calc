@@ -47,9 +47,9 @@ function FormField({ label, children, className = "" }: { label: string; childre
 }
 
 function Feedback({ params }: { params: Record<string, string | undefined> }) {
-  if (params.error) return <div className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{params.error}</div>;
-  if (params.saved) return <div className="mb-4 flex items-center gap-2 rounded-md border border-teal-500/30 bg-teal-500/10 px-4 py-3 text-sm text-teal-200"><TbCheck /> Alterações salvas.</div>;
-  if (params.deleted) return <div className="mb-4 flex items-center gap-2 rounded-md border border-teal-500/30 bg-teal-500/10 px-4 py-3 text-sm text-teal-200"><TbCheck /> Cadastro excluído.</div>;
+  if (params.error) return <div className="mb-4 border-l-2 border-red-500/60 bg-white/[0.02] px-4 py-3 text-sm text-red-300">{params.error}</div>;
+  if (params.saved) return <div className="mb-4 flex items-center gap-2 border-l-2 border-teal-500/60 bg-white/[0.02] px-4 py-3 text-sm text-teal-300"><TbCheck size={16} /> Alterações salvas.</div>;
+  if (params.deleted) return <div className="mb-4 flex items-center gap-2 border-l-2 border-teal-500/60 bg-white/[0.02] px-4 py-3 text-sm text-teal-300"><TbCheck size={16} /> Cadastro excluído.</div>;
   return null;
 }
 
@@ -105,7 +105,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               <FormField label="Quantidade comprada"><Input name="purchaseQuantity" type="number" min="0.0001" step="0.0001" defaultValue={editResin?.purchaseQuantity ?? 1} required /></FormField>
               <FormField label="Densidade (g/ml)"><Input name="density" type="number" min="0.0001" step="0.0001" defaultValue={editResin?.density ?? ""} placeholder="Obrigatória para kg/g" /></FormField>
               <FormField label="Custo manual por ml" className="sm:col-span-2"><Input name="manualCostPerMl" type="number" min="0" step="0.000001" defaultValue={editResin?.manualCostPerMl ?? ""} placeholder="Opcional; substitui o calculado" /></FormField>
-              {editResin ? <div className="sm:col-span-2 rounded-md border border-teal-500/15 bg-teal-500/[0.05] p-3 text-xs text-muted-foreground">Custo calculado atual: <strong className="text-teal-300">{formatCurrency(editResin.calculatedCostPerMl)}/ml</strong></div> : null}
+              {editResin ? <div className="sm:col-span-2 border-l-2 border-teal-500/50 bg-white/[0.02] p-3 text-xs text-muted-foreground">Custo calculado atual: <strong className="text-teal-300">{formatCurrency(editResin.calculatedCostPerMl)}/ml</strong></div> : null}
               <FormField label="Observações" className="sm:col-span-2"><Textarea name="notes" defaultValue={editResin?.notes ?? ""} className="min-h-20" /></FormField>
               <label className="sm:col-span-2 flex items-center gap-2 text-sm text-zinc-300"><input type="checkbox" name="isActive" defaultChecked={editResin?.isActive ?? true} className="accent-amber-500" /> Resina ativa</label>
             </div>

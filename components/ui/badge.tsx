@@ -1,23 +1,23 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-const tones: Record<string, string> = {
-  QUOTE: "border-amber-500/25 bg-amber-500/10 text-amber-300",
-  APPROVED: "border-sky-500/25 bg-sky-500/10 text-sky-300",
-  PRODUCED: "border-emerald-500/25 bg-emerald-500/10 text-emerald-300",
-  CANCELED: "border-red-500/25 bg-red-500/10 text-red-300",
-  ARCHIVED: "border-zinc-500/25 bg-zinc-500/10 text-zinc-300",
+const tones: Record<string, { dot: string; text: string }> = {
+  QUOTE: { dot: "bg-amber-400", text: "text-amber-300" },
+  APPROVED: { dot: "bg-sky-400", text: "text-sky-300" },
+  PRODUCED: { dot: "bg-emerald-400", text: "text-emerald-300" },
+  CANCELED: { dot: "bg-red-400", text: "text-red-300" },
+  ARCHIVED: { dot: "bg-zinc-500", text: "text-zinc-400" },
 };
 
-export function Badge({ className, status, ...props }: React.ComponentProps<"span"> & { status?: string }) {
+export function Badge({ className, status, children, ...props }: React.ComponentProps<"span"> & { status?: string }) {
+  const tone = (status && tones[status]) || tones.ARCHIVED;
   return (
     <span
-      className={cn(
-        "inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider",
-        status ? tones[status] : tones.ARCHIVED,
-        className,
-      )}
+      className={cn("inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider", tone.text, className)}
       {...props}
-    />
+    >
+      <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", tone.dot)} aria-hidden="true" />
+      {children}
+    </span>
   );
 }

@@ -17,9 +17,9 @@ const config: Config = {
         destructive: "hsl(var(--destructive))",
       },
       borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        lg: "var(--radius-action)",
+        md: "var(--radius)",
+        sm: "2px",
       },
       boxShadow: {
         ember: "0 0 24px rgb(245 139 22 / 0.08)",

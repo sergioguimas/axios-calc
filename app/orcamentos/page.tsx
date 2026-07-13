@@ -32,8 +32,8 @@ export default async function QuotesPage({ searchParams }: { searchParams: Promi
     <>
       <PageHeader eyebrow="Registro da oficina" title="Histórico de orçamentos" description={`${quotes.length} registro${quotes.length === 1 ? "" : "s"} encontrado${quotes.length === 1 ? "" : "s"}.`} actions={<Link href="/orcamentos/novo" className={cn(buttonVariants())}><TbPlus /> Novo orçamento</Link>} />
 
-      {params.error ? <div className="mb-4 rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{params.error}</div> : null}
-      {params.deleted ? <div className="mb-4 rounded-md border border-teal-500/30 bg-teal-500/10 px-4 py-3 text-sm text-teal-200">Orçamento excluído.</div> : null}
+      {params.error ? <div className="mb-4 border-l-2 border-red-500/60 bg-white/[0.02] px-4 py-3 text-sm text-red-300">{params.error}</div> : null}
+      {params.deleted ? <div className="mb-4 border-l-2 border-teal-500/60 bg-white/[0.02] px-4 py-3 text-sm text-teal-300">Orçamento excluído.</div> : null}
 
       <form className="panel mb-4 grid gap-3 p-4 md:grid-cols-[minmax(220px,1fr)_180px_160px_160px_auto]">
         <div className="relative"><TbSearch className="pointer-events-none absolute left-3 top-3 text-muted-foreground" /><Input name="search" defaultValue={search} placeholder="Modelo ou cliente" className="pl-9" /></div>

@@ -36,10 +36,16 @@ export default async function DashboardPage() {
         actions={<><Link href="/configuracoes" className={cn(buttonVariants({ variant: "secondary" }))}><TbSettings /> Configurações</Link><Link href="/orcamentos/novo" className={cn(buttonVariants())}><TbPlus /> Novo orçamento</Link></>}
       />
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="panel flex flex-col divide-y divide-border sm:flex-row sm:divide-x sm:divide-y-0">
         {metrics.map((metric) => {
           const Icon = metric.icon;
-          return <Card key={metric.label}><CardHeader><div><p className="metric-label">{metric.label}</p><p className="mt-2 font-display text-3xl font-bold tabular-nums text-white">{metric.value}</p></div><span className="grid h-10 w-10 place-items-center rounded-md border border-primary/20 bg-primary/[0.08] text-primary"><Icon size={21} /></span></CardHeader><CardContent><p className="text-xs text-muted-foreground">{metric.detail}</p></CardContent></Card>;
+          return (
+            <div key={metric.label} className="flex-1 px-5 py-4">
+              <div className="flex items-center gap-1.5"><Icon className="text-primary" size={14} strokeWidth={2} /><p className="metric-label">{metric.label}</p></div>
+              <p className="mt-2 font-display text-3xl font-bold tabular-nums text-white">{metric.value}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{metric.detail}</p>
+            </div>
+          );
         })}
       </section>
 
@@ -55,7 +61,7 @@ export default async function DashboardPage() {
             <div><p className="metric-label">Custo médio</p><p className="mt-1 font-display text-2xl font-semibold tabular-nums">{formatCurrency(aggregates._avg.totalCost ?? 0)}</p></div>
             <div className="h-px bg-border" />
             <div><p className="metric-label">Preço médio final</p><p className="mt-1 font-display text-2xl font-semibold tabular-nums text-primary">{formatCurrency(aggregates._avg.finalPrice ?? 0)}</p></div>
-            <div className="rounded-md border border-teal-500/15 bg-teal-500/[0.05] p-4"><TbCoin className="mb-2 text-teal-300" size={21} /><p className="text-xs leading-relaxed text-muted-foreground">Os indicadores usam os valores preservados em cada orçamento, mesmo que os cadastros sejam alterados depois.</p></div>
+            <div className="callout border-teal-500/50"><TbCoin className="mb-2 text-teal-300" size={18} /><p className="leading-relaxed">Os indicadores usam os valores preservados em cada orçamento, mesmo que os cadastros sejam alterados depois.</p></div>
           </CardContent>
         </Card>
       </section>

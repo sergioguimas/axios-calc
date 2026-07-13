@@ -163,17 +163,16 @@ export function QuoteForm({
     <form ref={formRef} action={formAction} className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
       <input type="hidden" name="pricingMode" value={pricingMode} />
       <div className="min-w-0 space-y-4">
-        <div className="panel flex items-center gap-3 px-5 py-4">
+        <div className="panel flex divide-x divide-border overflow-hidden">
           {["Dados", "Produção", "Preço"].map((step, index) => (
-            <div key={step} className="flex min-w-0 flex-1 items-center gap-3">
-              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border text-sm font-bold ${index === 0 ? "border-primary bg-primary text-primary-foreground" : "border-border bg-white/[0.03] text-muted-foreground"}`}>{index + 1}</span>
-              <span className={index === 0 ? "text-sm font-semibold text-primary" : "text-sm text-muted-foreground"}>{step}</span>
-              {index < 2 ? <span className="hidden h-px flex-1 bg-border sm:block" /> : null}
+            <div key={step} className={`flex flex-1 items-center gap-2 border-b-2 px-4 py-3 ${index === 0 ? "border-primary" : "border-transparent"}`}>
+              <span className={`font-display text-xs tabular-nums ${index === 0 ? "text-primary" : "text-muted-foreground"}`}>0{index + 1}</span>
+              <span className={`text-sm ${index === 0 ? "font-semibold text-primary" : "text-muted-foreground"}`}>{step}</span>
             </div>
           ))}
         </div>
 
-        {state.error ? <div role="alert" className="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">{state.error}</div> : null}
+        {state.error ? <div role="alert" className="border-l-2 border-red-500/60 bg-white/[0.02] px-4 py-3 text-sm text-red-300">{state.error}</div> : null}
 
         <div className="grid gap-4 lg:grid-cols-2">
           <section className="panel overflow-hidden">
@@ -199,7 +198,7 @@ export function QuoteForm({
               <Field label="Consumo de resina (ml)" className="sm:col-span-3"><Input name="resinMl" type="number" min="0" step="0.01" value={resinMl} onChange={(e) => setResinMl(Number(e.target.value))} /></Field>
               <Field label="Tempo — horas"><Input name="printHours" type="number" min="0" step="1" value={hours} onChange={(e) => setHours(Number(e.target.value))} /></Field>
               <Field label="Tempo — minutos"><Input name="printMinutes" type="number" min="0" max="59" step="1" value={minutes} onChange={(e) => setMinutes(Number(e.target.value))} /></Field>
-              <div className="flex items-end"><p className="w-full rounded-md border border-teal-500/15 bg-teal-500/[0.06] px-3 py-2.5 text-xs text-teal-300">Total: {formatDuration(totalMinutes)}</p></div>
+              <div className="flex items-end"><p className="w-full border-l-2 border-teal-500/50 bg-white/[0.02] px-3 py-2.5 text-xs text-teal-300">Total: {formatDuration(totalMinutes)}</p></div>
             </div>
           </section>
 
