@@ -11,3 +11,5 @@ data/*.db-wal
 design-qa-comparison.png
 npm-debug.log*
 *.tsbuildinfo
+AxiosCalc.md
+MARKETING.md
