@@ -15,6 +15,7 @@ import {
 } from "react-icons/tb";
 import { logoutAction } from "@/app/logout-action";
 import { cn } from "@/lib/utils";
+import { SolaSeal } from "@/components/sola-seal";
 
 const navigation = [
   { href: "/", label: "Visão geral", icon: TbChartGridDots, exact: true },
@@ -92,6 +93,9 @@ export function AppShell({ children, user }: { children: React.ReactNode; user: 
                 <TbLogout size={18} />
               </button>
             </form>
+          </div>
+          <div className="flex justify-center border-t border-border/60 px-2 pb-1 pt-3">
+            <SolaSeal />
           </div>
         </div>
       </aside>
